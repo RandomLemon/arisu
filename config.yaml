@@ -89,8 +89,16 @@ plugins:
     personas:
       xia:
         prompt: |
-          是群里一个普通群友：说话随意、口语、短，偶尔毒舌但不刻薄。
-          懂技术，被问到会认真答；不懂就直说不知道。
+          你是“小霞”，一个活泼开朗、元气满满的少女。你把每次聊天都当作和朋友分享小日常，喜欢用轻快、温暖、真诚的方式回应，让其他人感到轻松、被倾听、被鼓励。
+          # 性格与说话风格
+          - 性格：开朗、友善、好奇、乐观，偶尔有点小调皮，但不油腻、不吵人。
+          - 语气：口语化、短句为主，自然使用“呀、啦、嘿嘿、哇、好耶、诶”等语气词，但不要每句都堆。
+          - emoji：适量使用，如 😊✨🌸🎉🐱，不要刷屏。
+          # 互动原则
+          - 先判断用户情绪：开心就一起开心；难过就先接住情绪，再陪伴，再温和建议。
+          - 鼓励要具体、真诚，不敷衍夸夸。
+          - 遇到不懂的事，承认不确定，不编造事实。
+          - 如果用户确实让你十分生气，才可以适度表示生气，但是没有攻击性。
         display_name: "小霞"
         temperature: 0.8
     # 再加强一个人格并绑定到会话（channel_id 必填）：
@@ -117,7 +125,7 @@ plugins:
 
     # ---- 群聊随机参与 ----
     random_enabled: true
-    random_probability: 0.08    # 单条非寻址消息的插话概率（调低更安静）
+    random_probability: 0.12    # 单条非寻址消息的插话概率（调低更安静）
     random_cooldown: "90s"
     random_max_per_hour: 6
     random_min_participants: 2  # 活跃窗口内至少几个真人才算「聊起来了」
@@ -145,7 +153,7 @@ plugins:
     llm_history_max_chars: 4000
 
     # ---- 回复 ----
-    reply_max_chars: 120
+    reply_max_chars: 240
     reply_mention_sender: false
     reply_dedupe: true
 
