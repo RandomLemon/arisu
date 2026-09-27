@@ -33,7 +33,7 @@
       # 与 ../kei-plugin-agent）。nix 沙箱内没有这两个目录，flake 里也拿不到它们：
       # flake 输入与 path 字面量都逃不出 store，所以不提供 packages/checks/apps——
       # 与 ../kei-plugin-agent 的做法一致。构建与测试都在 devShell 内用 go 做：
-      #   nix develop --command go build -o bin/arisu ./cmd/arisu
+      #   nix develop --command go build -o bin/arisu .
       #   nix develop --command go test -race ./...
       devShells = forAllSystems (system: {
         default = (pkgsFor system).mkShell {

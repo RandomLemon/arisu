@@ -6,8 +6,9 @@
 
 ## 1. 项目定位
 
-- 项目名 `arisu`，**module path 必须是 `github.com/RandomLemon/arisu`**，根目录只有
-  `cmd/arisu` 与 `configs/`。
+- 项目名 `arisu`，**module path 必须是 `github.com/RandomLemon/arisu`**：源码与示例配置直接
+  放在模块根目录（`main.go`、`e2e_test.go`、`config.yaml`），**不建** `cmd/`、`configs/`
+  子目录——宿主只有一个 `main` 包。
 - 它是 [`kei`](https://github.com/RandomLemon/kei) 的宿主二进制：装配适配器与插件、启动引擎、
   优雅退出；业务逻辑一律在上游仓库或独立 module 里，本仓库不实现平台协议、不实现插件逻辑。
 - 内置 [`kei-plugin-agent`](https://github.com/RandomLemon/kei-plugin-agent)（插件名 `agent`）。
@@ -33,9 +34,9 @@
 
 |文件|与上游的关系|
 |---|---|
-|`cmd/arisu/main.go`|与 `../kei/cmd/bot/main.go` 同构（flag + 信号 + 空导入 + 一次 `kei.Run`），差异只有三处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`），flag 集名与错误前缀为 arisu|
+|`main.go`|与 `../kei/cmd/bot/main.go` 同构（flag + 信号 + 空导入 + 一次 `kei.Run`），差异只有四处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`），flag 集名与错误前缀为 arisu；默认配置路径是模块根目录的 `config.yaml`（上游是 `configs/config.yaml`）|
 
-升级 kei 后同步这个文件；差异应保持为上面三处。门面 API（`kei.Options` 等）变动时同步本文件
+升级 kei 后同步这个文件；差异应保持为上面四处。门面 API（`kei.Options` 等）变动时同步本文件
 与 `README.md`，**不要**在本仓库重新实现装配。
 
 ## 2. 硬性规则
@@ -45,10 +46,10 @@
 - 只依赖 `github.com/RandomLemon/kei` 与 `github.com/RandomLemon/kei-plugin-agent`（本地走
   `replace ... => ../kei`、`=> ../kei-plugin-agent`）。**禁止新增第三方依赖**——需要新依赖时先在上游
   仓库解决，`go.mod` 里出现新的 `require` 即视为回归。
-- 适配器与插件只能经注册表接入：新增平台/插件时只加空导入与配置，禁止在 `cmd/arisu` 里写
+- 适配器与插件只能经注册表接入：新增平台/插件时只加空导入与配置，禁止在 `main.go` 里写
   `switch adapter`、`if platform == "onebot"` 之类的分支。
 - 配置与密钥只经配置对象读取；禁止在代码里 `os.Getenv` 或读配置文件。
-- 配置键的权威清单在上游文档；本仓库只在 `configs/config.yaml` 给示例，不定义新键。
+- 配置键的权威清单在上游文档；本仓库只在根目录的 `config.yaml` 给示例，不定义新键。
   上游新增/改名的键要同步示例配置与 `README.md`。
 
 ### 2.2 运行时契约（继承 kei）
@@ -81,11 +82,11 @@ go test -race ./...   # 必过：e2e 里有多协程与定时器
 
 - 公开符号必须有文档注释；注释与实现不符视为缺陷。
 - 行为变更（默认配置、命令集合、启动参数、日志字段）必须同步更新 `README.md` 与
-  `configs/config.yaml`。
+  `config.yaml`。
 
 ## 4. 测试约定
 
-- `cmd/arisu/e2e_test.go` 是唯一的测试文件：起真实引擎（临时配置 -> `kei.Run` ->
+- `e2e_test.go` 是唯一的测试文件：起真实引擎（临时配置 -> `kei.Run` ->
   `adaptermgr` -> `pluginmgr` -> `engine.Run`），断言**可观察行为**（mock 适配器记录到的消息内容、发送目标、优雅退出）。
 - LLM 用 `httptest.Server` 桩，禁止依赖真实网络与真实平台；端口用 `freeAddr` 现取，禁止写死。
 - 禁止断言实现细节（wiring、字段拷贝、日志文案），禁止为测试引入第三方 mock 库。
@@ -95,9 +96,9 @@ go test -race ./...   # 必过：e2e 里有多协程与定时器
 ## 5. 项目结构
 
 ```text
-cmd/arisu/main.go       入口薄壳：flag + 信号 + 空导入 + 一次 kei.Run（装配全部委托 pkg/kei，无平台分支）
-cmd/arisu/e2e_test.go   端到端测试（真实引擎 + mock 适配器 + LLM 桩 + 优雅退出）
-configs/config.yaml     示例配置：mock/OneBot + echo/manage/agent
+main.go                 入口薄壳：flag + 信号 + 空导入 + 一次 kei.Run（装配全部委托 pkg/kei，无平台分支）
+e2e_test.go             端到端测试（真实引擎 + mock 适配器 + LLM 桩 + 优雅退出）
+config.yaml             示例配置：mock/OneBot + echo/manage/agent
 flake.nix               devShell（go 工具链）与 formatter
 .envrc                  direnv：进入目录自动 `nix develop`
 ```

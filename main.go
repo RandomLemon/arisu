@@ -5,13 +5,15 @@
 // kei 的 cmd/bot/main.go 同构。所有平台细节都在 adapters/ 或第三方适配器包内，
 // 本文件不含任何平台名分支。
 //
-// 与 kei cmd/bot 的差异只有三处（见 README「为什么有 cmd/arisu」）：
+// 本仓库的入口就是模块根目录下的 main.go（README「为什么入口在根目录」），与
+// kei cmd/bot 的差异只有四处：
 //
 //  1. 额外空导入 github.com/RandomLemon/kei-plugin-agent，把「LLM 人格代理」插件打进
 //     本二进制，配置文件里 plugins.agent.enabled: true 即启用；
 //  2. run 接收调用方传入的 context，而不是在 run 内部自己装信号处理器：main 负责
 //     SIGINT/SIGTERM，测试可以直接驱动「启动 -> 收事件 -> 优雅退出」全链路；
-//  3. flag 集名与错误前缀用 arisu。
+//  3. flag 集名与错误前缀用 arisu；
+//  4. 默认配置路径是模块根目录的 config.yaml（kei cmd/bot 是 configs/config.yaml）。
 package main
 
 import (
@@ -49,7 +51,7 @@ func main() {
 // run 装配并运行机器人，ctx 结束时优雅退出。
 func run(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("arisu", flag.ContinueOnError)
-	configPath := fs.String("config", "configs/config.yaml", "配置文件路径")
+	configPath := fs.String("config", "config.yaml", "配置文件路径")
 	showVersion := fs.Bool("version", false, "打印版本并退出")
 	if err := fs.Parse(args); err != nil {
 		return err
