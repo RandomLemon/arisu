@@ -138,7 +138,7 @@ plugins:
     llm_api_key: ""             # 留空则不发送 Authorization 头；建议用 KEI_PLUGINS_AGENT_LLM_API_KEY
     llm_model: "qwen3.6-35b-a3b-mtp"
     llm_temperature: 0.8
-    llm_max_tokens: 120
+    llm_max_tokens: 240
     llm_timeout: "20s"
     llm_max_retries: 1
     llm_skip_token: "[SKIP]"
