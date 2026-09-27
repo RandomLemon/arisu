@@ -12,7 +12,7 @@
 #   KEI_BOTS_MOCK_MAIN_ENABLED=false                # 只停用这一个实例
 
 log:
-  level: info    # debug | info | warn | error
+  level: debug    # debug | info | warn | error
   format: text   # text | json
 
 # Prometheus 指标与健康检查；addr 为空表示不暴露。
@@ -64,9 +64,9 @@ bots:
     ws_url: ""                 # 正向 WebSocket 地址；forward_ws 下必填
     listen_addr: 127.0.0.1:18082
     path: /onebot/event        # HTTP 上报路径（forward_http 下生效）
-    ws_path: /onebot/ws        # 反向 WebSocket 路径（reverse_ws 下生效）
+    ws_path: /onebot/v11/ws        # 反向 WebSocket 路径（reverse_ws 下生效）
     ping_interval: 30s
-    secret: ""                 # 非空时上报与反向 WebSocket 都必须带同一令牌
+    secret: "1145141919810"                 # 非空时上报与反向 WebSocket 都必须带同一令牌
     access_token: ""
     self_id: ""                # 非空时只接受 X-Self-ID 一致的反向 WebSocket 连接
 
@@ -87,26 +87,26 @@ plugins:
 
     # ---- 人格 ----
     personas:
-      arisu:
+      xia:
         prompt: |
-          名字叫「爱丽丝」，是群里一个普通群友：说话随意、口语、短，偶尔毒舌但不刻薄。
+          是群里一个普通群友：说话随意、口语、短，偶尔毒舌但不刻薄。
           懂技术，被问到会认真答；不懂就直说不知道。
-        display_name: "爱丽丝"
+        display_name: "小霞"
         temperature: 0.8
     # 再加强一个人格并绑定到会话（channel_id 必填）：
     #   personas: { arisu: ..., deadpan: "冷淡、话少，常用短句。" }
     #   bindings: [{ channel_id: "123456789", persona: deadpan }]
-    default_persona: "arisu"
+    default_persona: "xia"
 
     # ---- 触发与过滤 ----
     self_ids: []                          # 建议填机器人自己的 QQ 号，避免 @ 到别人也算寻址
-    trigger_keywords: ["爱丽丝", "arisu"]  # 名字被提到就算寻址
+    trigger_keywords: ["小霞", "itxia"]  # 名字被提到就算寻址
     trigger_min_chars: 2
     ignore_bots: true
     respond_to_commands: false
 
     # ---- 名单策略（off | open | whitelist | blacklist）----
-    group_policy: "open"        # 匹配 ev.Channel.ID（群号）
+    group_policy: "whitelist"        # 匹配 ev.Channel.ID（群号）
     group_list: []
     private_policy: "open"      # 匹配 ev.Sender.ID（QQ 号）；私聊必回
     private_list: []
@@ -117,7 +117,7 @@ plugins:
 
     # ---- 群聊随机参与 ----
     random_enabled: true
-    random_probability: 0.12    # 单条非寻址消息的插话概率（调低更安静）
+    random_probability: 0.08    # 单条非寻址消息的插话概率（调低更安静）
     random_cooldown: "90s"
     random_max_per_hour: 6
     random_min_participants: 2  # 活跃窗口内至少几个真人才算「聊起来了」
@@ -134,18 +134,18 @@ plugins:
     context_max_channels: 512
 
     # ---- LLM（OpenAI 兼容）----
-    llm_base_url: "https://api.openai.com/v1"
+    llm_base_url: "http://192.168.200.101:8001/v1"
     llm_api_key: ""             # 留空则不发送 Authorization 头；建议用 KEI_PLUGINS_AGENT_LLM_API_KEY
-    llm_model: "gpt-4o-mini"
+    llm_model: "qwen3.6-35b-a3b-mtp"
     llm_temperature: 0.8
-    llm_max_tokens: 200
+    llm_max_tokens: 120
     llm_timeout: "20s"
     llm_max_retries: 1
     llm_skip_token: "[SKIP]"
     llm_history_max_chars: 4000
 
     # ---- 回复 ----
-    reply_max_chars: 200
+    reply_max_chars: 120
     reply_mention_sender: false
     reply_dedupe: true
 
