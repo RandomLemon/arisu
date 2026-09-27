@@ -1,0 +1,167 @@
+# arisu 配置。
+#
+# 键语义与默认值见 kei 的 docs/configuration.md 与 kei-plugin-agent 的
+# docs/configuration.md；本文件只写「与默认值不同」或需要人工填写的键。
+#
+# 所有键都可以用环境变量覆盖（前缀 KEI_），例如：
+#   KEI_LOG_LEVEL=debug
+#   KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx            # 密钥不要写进本文件
+#   KEI_PLUGINS_AGENT_LLM_BASE_URL=http://127.0.0.1:11434/v1
+#   KEI_PLUGINS_AGENT_LLM_MODEL=qwen2.5:7b
+#   KEI_AUTH_ADMIN_USERS=123456                     # 逗号分隔
+#   KEI_BOTS_MOCK_MAIN_ENABLED=false                # 只停用这一个实例
+
+log:
+  level: info    # debug | info | warn | error
+  format: text   # text | json
+
+# Prometheus 指标与健康检查；addr 为空表示不暴露。
+metrics:
+  addr: 127.0.0.1:19090
+
+# 限流：0 表示不限制（LLM 插件自带并发上限 limits_max_concurrent）。
+limits:
+  handler_rate: 0    # 每用户每秒允许处理的规则次数
+  handler_burst: 0
+  send_rate: 0       # 每个 bot 每秒允许发送的条数
+  send_burst: 0
+
+# 管理员名单：/agent 命令、/plugins（manage.plugins_admin_only）都要求发送者在此列表。
+# 填 QQ 号（OneBot）或 open_id（飞书），例如 ["123456"]。
+auth:
+  admin_users: []
+
+# 外部插件（gRPC）通道：addr 非空时启动 BotService，供外部插件与外部适配器回调核心。
+# arisu 自身只用进程内插件，保持关闭即可。
+grpc:
+  addr: ""
+  cert_file: ""
+  key_file: ""
+  ca_file: ""
+
+# 适配器声明（可选）：用 enabled 控制启用（缺省 true）；声明 grpc_addr 即视为外部适配器。
+adapters:
+  # 示例：临时停用某个平台，不需要删掉下面的 bots 条目
+  # feishu:
+  #   enabled: false
+
+bots:
+  # Mock 适配器：本地联调用，HTTP 控制面手动注入事件并观察发送结果。
+  #   curl -XPOST 127.0.0.1:18080/inject -d '{"kind":"private","text":"在吗","user_id":"u1"}'
+  #   curl 127.0.0.1:18080/sent
+  - name: mock-main
+    adapter: mock
+    platform: mock
+    listen_addr: 127.0.0.1:18080
+
+  # 飞书：开放平台事件订阅地址填 https://<你的域名>/feishu/event，
+  # verification_token / encrypt_key 与开放平台一致；app_secret 用
+  # KEI_BOTS_FEISHU_MAIN_APP_SECRET 注入而不是写在文件里。
+  - name: feishu-main
+    enabled: false
+    adapter: feishu
+    app_id: cli_xxx
+    app_secret: xxx
+    verification_token: xxx
+    encrypt_key: ""
+    listen_addr: 127.0.0.1:18081
+    path: /feishu/event
+
+  # OneBot v11（QQ）：mode 四选一，一次只启用一种接入方式（缺省 reverse_ws）。
+  # reverse_ws：OneBot 实现（如 NapCat/Lagrange）连接到 ws://127.0.0.1:18082/onebot/ws
+  - name: qq-main
+    enabled: true
+    adapter: onebot
+    mode: reverse_ws           # forward_http / reverse_http / forward_ws / reverse_ws
+    api_url: http://127.0.0.1:3000   # HTTP API；forward_http/reverse_http 下必填
+    ws_url: ""                 # 正向 WebSocket 地址；forward_ws 下必填
+    listen_addr: 127.0.0.1:18082
+    path: /onebot/event        # HTTP 上报路径（forward_http 下生效）
+    ws_path: /onebot/ws        # 反向 WebSocket 路径（reverse_ws 下生效）
+    ping_interval: 30s
+    secret: ""                 # 非空时上报与反向 WebSocket 都必须带同一令牌
+    access_token: ""
+    self_id: ""                # 非空时只接受 X-Self-ID 一致的反向 WebSocket 连接
+
+plugins:
+  # /echo <文字>：原样回显，用来确认链路通。
+  echo:
+    enabled: true
+
+  # /ping、/version、/plugins、/adapters。
+  manage:
+    enabled: true
+    plugins_admin_only: true   # /plugins 仅管理员可用（需配置 auth.admin_users）
+
+  # LLM 人格代理：群聊里按人格预设偶尔插话，私聊必回。
+  # 完整键表与默认值见 kei-plugin-agent 的 docs/configuration.md 第 10 节。
+  agent:
+    enabled: true
+
+    # ---- 人格 ----
+    personas:
+      arisu:
+        prompt: |
+          名字叫「爱丽丝」，是群里一个普通群友：说话随意、口语、短，偶尔毒舌但不刻薄。
+          懂技术，被问到会认真答；不懂就直说不知道。
+        display_name: "爱丽丝"
+        temperature: 0.8
+    # 再加强一个人格并绑定到会话（channel_id 必填）：
+    #   personas: { arisu: ..., deadpan: "冷淡、话少，常用短句。" }
+    #   bindings: [{ channel_id: "123456789", persona: deadpan }]
+    default_persona: "arisu"
+
+    # ---- 触发与过滤 ----
+    self_ids: []                          # 建议填机器人自己的 QQ 号，避免 @ 到别人也算寻址
+    trigger_keywords: ["爱丽丝", "arisu"]  # 名字被提到就算寻址
+    trigger_min_chars: 2
+    ignore_bots: true
+    respond_to_commands: false
+
+    # ---- 名单策略（off | open | whitelist | blacklist）----
+    group_policy: "open"        # 匹配 ev.Channel.ID（群号）
+    group_list: []
+    private_policy: "open"      # 匹配 ev.Sender.ID（QQ 号）；私聊必回
+    private_list: []
+
+    # ---- 寻址 ----
+    mention_reply_probability: 1.0
+    mention_min_interval: "10s"
+
+    # ---- 群聊随机参与 ----
+    random_enabled: true
+    random_probability: 0.12    # 单条非寻址消息的插话概率（调低更安静）
+    random_cooldown: "90s"
+    random_max_per_hour: 6
+    random_min_participants: 2  # 活跃窗口内至少几个真人才算「聊起来了」
+    random_activity_window: "5m"
+    random_quiet_hours: ""      # 例如 "23:30-07:30"；空表示不静默
+    random_timezone: "Asia/Shanghai"
+
+    # ---- 批处理窗口 ----
+    batch_window: "2.5s"
+    batch_max_window: "8s"
+
+    # ---- 上下文 ----
+    context_max_messages: 20
+    context_max_channels: 512
+
+    # ---- LLM（OpenAI 兼容）----
+    llm_base_url: "https://api.openai.com/v1"
+    llm_api_key: ""             # 留空则不发送 Authorization 头；建议用 KEI_PLUGINS_AGENT_LLM_API_KEY
+    llm_model: "gpt-4o-mini"
+    llm_temperature: 0.8
+    llm_max_tokens: 200
+    llm_timeout: "20s"
+    llm_max_retries: 1
+    llm_skip_token: "[SKIP]"
+    llm_history_max_chars: 4000
+
+    # ---- 回复 ----
+    reply_max_chars: 200
+    reply_mention_sender: false
+    reply_dedupe: true
+
+    # ---- 限制与调试 ----
+    limits_max_concurrent: 2
+    debug_prompts: false
