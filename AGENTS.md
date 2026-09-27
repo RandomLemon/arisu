@@ -6,34 +6,37 @@
 
 ## 1. 项目定位
 
-- 项目名 `arisu`，**module path 必须是 `github.com/RandomLemon/kei/arisu`**，根目录只有
+- 项目名 `arisu`，**module path 必须是 `github.com/RandomLemon/arisu`**，根目录只有
   `cmd/arisu` 与 `configs/`。
 - 它是 [`kei`](https://github.com/RandomLemon/kei) 的宿主二进制：装配适配器与插件、启动引擎、
   优雅退出；业务逻辑一律在上游仓库或独立 module 里，本仓库不实现平台协议、不实现插件逻辑。
 - 内置 [`kei-plugin-agent`](https://github.com/RandomLemon/kei-plugin-agent)（插件名 `agent`）。
 
-### 1.1 为什么 module path 嵌在 kei 之下
+### 1.1 module path
 
-kei 把 Engine/config/adaptermgr/pluginmgr 放在 `internal/`，`cmd/bot` 是 `package main`
-不可导入，也没有公开的引擎构造 API。Go 的 internal 可见性按 **import path 前缀**判定，
-因此只有 import path 落在 `github.com/RandomLemon/kei/` 之下的 module 才能组装宿主：
+`module github.com/RandomLemon/arisu`：本仓库是独立 module，import path 不嵌在 kei 之下。
 
-```text
-module github.com/RandomLemon/arisu       -> use of internal package ... not allowed
-module github.com/RandomLemon/kei/arisu   -> 可以
-```
+历史形态是 `github.com/RandomLemon/kei/arisu`。kei 曾把 Engine/config/adaptermgr/pluginmgr
+放在 `internal/` 且没有公开装配 API，Go 的 internal 可见性按 import path 前缀判定，宿主只有
+落在 `github.com/RandomLemon/kei/` 之下才能组装。kei 公开装配门面
+`github.com/RandomLemon/kei/pkg/kei`（一次 `kei.Run(ctx, kei.Options{...})`）后该约束消失——本
+仓库只依赖 `pkg/kei`、`pkg/bot` 与各适配器/插件包，不再 import 任何 `internal/`，module path
+随之改回仓库自身的顶层路径。
 
-**不要**把 module path 改成 `github.com/RandomLemon/arisu`：`go build ./...` 会立刻失败。
-这是在 kei 不公开引擎 API 的前提下的唯一可行形态，换来的代价是宿主代码是 `cmd/bot` 的副本。
+**不要**再嵌回 kei：那会重新把宿主绑进 kei 的 import path 前缀，只在没有 `pkg/kei` 门面的旧
+形态下才需要。
 
 ### 1.2 与 kei 的同步契约
 
-| 文件 | 与上游的关系 |
-| --- | --- |
-| `cmd/arisu/external.go` | 与 `../kei/cmd/bot/external.go` **逐字一致**（只多一段来源注释） |
-| `cmd/arisu/main.go` | 与 `../kei/cmd/bot/main.go` 等价，差异只有三处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`） |
+装配逻辑（适配器与插件装配、外部插件与外部适配器的 gRPC 通道、日志/指标/存储、优雅退出）
+全部在 kei 的公开门面 `pkg/kei`，本仓库不再持有任何副本。
 
-升级 kei 后同步这两个文件；`external.go` 的差异应保持为空，`main.go` 的差异应保持为上面三处。
+|文件|与上游的关系|
+|---|---|
+|`cmd/arisu/main.go`|与 `../kei/cmd/bot/main.go` 同构（flag + 信号 + 空导入 + 一次 `kei.Run`），差异只有三处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`），flag 集名与错误前缀为 arisu|
+
+升级 kei 后同步这个文件；差异应保持为上面三处。门面 API（`kei.Options` 等）变动时同步本文件
+与 `README.md`，**不要**在本仓库重新实现装配。
 
 ## 2. 硬性规则
 
@@ -82,8 +85,8 @@ go test -race ./...   # 必过：e2e 里有多协程与定时器
 
 ## 4. 测试约定
 
-- `cmd/arisu/e2e_test.go` 是唯一的测试文件：起真实引擎（临时配置 -> `adaptermgr` -> `pluginmgr`
-  -> `engine.Run`），断言**可观察行为**（mock 适配器记录到的消息内容、发送目标、优雅退出）。
+- `cmd/arisu/e2e_test.go` 是唯一的测试文件：起真实引擎（临时配置 -> `kei.Run` ->
+  `adaptermgr` -> `pluginmgr` -> `engine.Run`），断言**可观察行为**（mock 适配器记录到的消息内容、发送目标、优雅退出）。
 - LLM 用 `httptest.Server` 桩，禁止依赖真实网络与真实平台；端口用 `freeAddr` 现取，禁止写死。
 - 禁止断言实现细节（wiring、字段拷贝、日志文案），禁止为测试引入第三方 mock 库。
 - 单测覆盖不到的平台真机行为（OneBot 反向 WebSocket）由上游仓库的测试保证；
@@ -92,8 +95,7 @@ go test -race ./...   # 必过：e2e 里有多协程与定时器
 ## 5. 项目结构
 
 ```text
-cmd/arisu/main.go       入口：加载配置 -> 装配适配器/插件 -> 启动引擎 -> 优雅退出（无平台分支）
-cmd/arisu/external.go   外部插件与外部适配器的 gRPC 通道装配（与 kei cmd/bot 逐字一致）
+cmd/arisu/main.go       入口薄壳：flag + 信号 + 空导入 + 一次 kei.Run（装配全部委托 pkg/kei，无平台分支）
 cmd/arisu/e2e_test.go   端到端测试（真实引擎 + mock 适配器 + LLM 桩 + 优雅退出）
 configs/config.yaml     示例配置：mock/OneBot + echo/manage/agent
 flake.nix               devShell（go 工具链）与 formatter

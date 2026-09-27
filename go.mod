@@ -1,4 +1,4 @@
-module github.com/RandomLemon/kei/arisu
+module github.com/RandomLemon/arisu
 
 go 1.25.0
 

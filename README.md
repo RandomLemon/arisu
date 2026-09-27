@@ -13,8 +13,7 @@
 ## 目录结构
 
 ```text
-cmd/arisu/main.go       入口：加载配置 -> 装配适配器与插件 -> 启动引擎 -> 优雅退出
-cmd/arisu/external.go   外部插件（gRPC）与外部适配器的装配（与 kei cmd/bot 逐字一致）
+cmd/arisu/main.go       入口薄壳：flag + 信号 + 空导入 + 一次 kei.Run（装配全部委托 pkg/kei）
 cmd/arisu/e2e_test.go   端到端测试：真实引擎 + mock 适配器 + LLM 桩
 configs/config.yaml     配置示例（mock/OneBot + echo/manage/agent）
 flake.nix devShell       go / gopls / golangci-lint / dlv / jq / curl / python3
@@ -23,15 +22,19 @@ flake.nix devShell       go / gopls / golangci-lint / dlv / jq / curl / python3
 
 ## 为什么有 `cmd/arisu`
 
-kei 把 Engine/EventBus/Router/config/adaptermgr/pluginmgr 全部放在 `internal/`，且没有公开的
-引擎构造 API；`cmd/bot` 是 `package main`，无法被导入。因此「在 kei 之上组装宿主二进制」只能
-由 import path 落在 `github.com/RandomLemon/kei/` 之下的 module 完成（Go 的 internal 可见性
-按 import path 前缀判定）。这就是本仓库 `module github.com/RandomLemon/kei/arisu` 的原因：
+kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 配置、装配适配器与
+插件（含外部 gRPC 通道）、启动引擎、优雅退出，全部由一次
+`kei.Run(ctx, kei.Options{ConfigFile: "configs/config.yaml"})` 完成。因此本仓库的入口只是
+一个薄壳——`cmd/arisu/main.go` 与 kei 的 `cmd/bot/main.go` 同构，只做 flag、信号与空导入：
 
-- 宿主体是 kei `cmd/bot` 的等价副本，差异只有两处：额外空导入 `kei-plugin-agent`，以及
-  `run(ctx, args)` 接收调用方传入的 context（信号处理留在 `main`，测试可直接驱动全链路）。
-- 升级 kei 后请同步 `cmd/arisu/{main,external}.go`；`external.go` 应保持与
-  `../kei/cmd/bot/external.go` 逐字一致，`main.go` 的差异仅限上面两处。
+- 差异只有三处：额外空导入 `kei-plugin-agent`；`run(ctx, args)` 接收调用方传入的 context
+  （信号处理留在 `main`，测试可直接驱动全链路）；flags 集名与错误前缀为 `arisu`。
+- module path 是 `github.com/RandomLemon/arisu`（独立 module）。历史形态是
+  `github.com/RandomLemon/kei/arisu`：kei 曾不公开装配 API，宿主必须让 import path 落在
+  `github.com/RandomLemon/kei/` 之下才能访问 `internal/`；`pkg/kei` 门面公开后该约束消失，
+  本仓库不再依赖任何 `internal/` 包，module path 随之回到顶层。
+- 升级 kei 后同步 `cmd/arisu/main.go`；装配逻辑（含外部插件/外部适配器 gRPC 通道）不在本
+  仓库，不需要复制。
 
 ## 环境准备（Nix + direnv）
 
@@ -178,8 +181,7 @@ KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx ./bin/arisu -config /etc/arisu/config.yaml
 
 ## 已知限制
 
-- `Storage` 是 kei 的内存实现，重启丢历史与 `/agent` 的运行时覆盖；要持久化就在
-  `cmd/arisu/main.go` 把 `storage.NewMemory()` 换成自己的 `bot.Storage` 实现（如 Redis/SQLite）。
+- `Storage` 是 kei 的内存实现，重启丢历史与 `/agent` 的运行时覆盖；要持久化就把自己的
+  `bot.Storage` 实现（如 Redis/SQLite）经 `kei.Run(ctx, kei.Options{Storage: ...})` 注入。
 - 同一平台多个 bot 实例时，主动发送必须在 `bot.Target.BotID` 指定实例名；回复当前会话由
   `TargetFromEvent` 自动带上，不受影响。
-- 宿主代码是 kei `cmd/bot` 的副本（原因见上文），升级 kei 需要同步这两个文件。
