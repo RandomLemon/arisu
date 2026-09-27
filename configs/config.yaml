@@ -27,7 +27,7 @@ limits:
   send_burst: 0
 
 # 管理员名单：/agent 命令、/plugins（manage.plugins_admin_only）都要求发送者在此列表。
-# 填 QQ 号（OneBot）或 open_id（飞书），例如 ["123456"]。
+# 填 QQ 号（OneBot），例如 ["123456"]。
 auth:
   admin_users: []
 
@@ -40,10 +40,10 @@ grpc:
   ca_file: ""
 
 # 适配器声明（可选）：用 enabled 控制启用（缺省 true）；声明 grpc_addr 即视为外部适配器。
-adapters:
-  # 示例：临时停用某个平台，不需要删掉下面的 bots 条目
-  # feishu:
-  #   enabled: false
+# 示例：临时停用某个平台，不需要删掉下面的 bots 条目
+# adapters:
+#   onebot:
+#     enabled: false
 
 bots:
   # Mock 适配器：本地联调用，HTTP 控制面手动注入事件并观察发送结果。
@@ -53,19 +53,6 @@ bots:
     adapter: mock
     platform: mock
     listen_addr: 127.0.0.1:18080
-
-  # 飞书：开放平台事件订阅地址填 https://<你的域名>/feishu/event，
-  # verification_token / encrypt_key 与开放平台一致；app_secret 用
-  # KEI_BOTS_FEISHU_MAIN_APP_SECRET 注入而不是写在文件里。
-  - name: feishu-main
-    enabled: false
-    adapter: feishu
-    app_id: cli_xxx
-    app_secret: xxx
-    verification_token: xxx
-    encrypt_key: ""
-    listen_addr: 127.0.0.1:18081
-    path: /feishu/event
 
   # OneBot v11（QQ）：mode 四选一，一次只启用一种接入方式（缺省 reverse_ws）。
   # reverse_ws：OneBot 实现（如 NapCat/Lagrange）连接到 ws://127.0.0.1:18082/onebot/ws

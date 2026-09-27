@@ -4,7 +4,7 @@
 [kei-plugin-agent](https://github.com/RandomLemon/kei-plugin-agent)「LLM 人格代理」插件：
 在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。
 
-- 平台：OneBot v11（QQ）、飞书、mock（本地联调）。适配器与插件全部经 kei 的注册表装配，
+- 平台：OneBot v11（QQ）、mock（本地联调）。适配器与插件全部经 kei 的注册表装配，
   `cmd/arisu` 内不出现任何平台名分支。
 - 插件：`agent`（LLM 人格代理）、`echo`、`manage`。
 - 工具链：Go 1.25+，由 `flake.nix` + direnv 提供（`nix develop`），零第三方运行时依赖
@@ -16,7 +16,7 @@
 cmd/arisu/main.go       入口：加载配置 -> 装配适配器与插件 -> 启动引擎 -> 优雅退出
 cmd/arisu/external.go   外部插件（gRPC）与外部适配器的装配（与 kei cmd/bot 逐字一致）
 cmd/arisu/e2e_test.go   端到端测试：真实引擎 + mock 适配器 + LLM 桩
-configs/config.yaml     配置示例（mock/OneBot/飞书 + echo/manage/agent）
+configs/config.yaml     配置示例（mock/OneBot + echo/manage/agent）
 flake.nix devShell       go / gopls / golangci-lint / dlv / jq / curl / python3
 .envrc                  direnv：进入目录自动 `nix develop`
 ```
@@ -119,13 +119,6 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 
 建议把 `bots[].self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址（否则任意 @ 都算）。
 
-### 飞书
-
-1. 开放平台创建应用，把事件订阅地址填成 `https://<你的域名>/feishu/event`；
-2. `configs/config.yaml` 里把 `feishu-main` 的 `enabled` 改为 `true`，填 `app_id` /
-   `verification_token` / `encrypt_key`；
-3. `app_secret` 用环境变量注入：`KEI_BOTS_FEISHU_MAIN_APP_SECRET=xxx`。
-
 ## 配置
 
 配置键的权威说明在 kei 的 `docs/configuration.md`（框架配置）与 kei-plugin-agent 的
@@ -141,7 +134,7 @@ KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx          # 密钥只走环境变量，不�
 KEI_PLUGINS_AGENT_LLM_MODEL=qwen2.5:7b
 KEI_PLUGINS_AGENT_PRIVATE_POLICY=whitelist
 KEI_BOTS_QQ_MAIN_ENABLED=false                # 只停用这一个实例
-KEI_ADAPTERS_FEISHU_ENABLED=false             # 停用整个平台
+KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 ```
 
 `personas` / `bindings` / `group_list` / `private_list` 这类复合结构不支持环境变量覆盖，写在 YAML 里。

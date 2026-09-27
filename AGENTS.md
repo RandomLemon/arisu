@@ -31,9 +31,9 @@ module github.com/RandomLemon/kei/arisu   -> 可以
 | 文件 | 与上游的关系 |
 | --- | --- |
 | `cmd/arisu/external.go` | 与 `../kei/cmd/bot/external.go` **逐字一致**（只多一段来源注释） |
-| `cmd/arisu/main.go` | 与 `../kei/cmd/bot/main.go` 等价，差异只有两处：多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`） |
+| `cmd/arisu/main.go` | 与 `../kei/cmd/bot/main.go` 等价，差异只有三处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`） |
 
-升级 kei 后同步这两个文件；`external.go` 的差异应保持为空，`main.go` 的差异应保持为上面两处。
+升级 kei 后同步这两个文件；`external.go` 的差异应保持为空，`main.go` 的差异应保持为上面三处。
 
 ## 2. 硬性规则
 
@@ -43,7 +43,7 @@ module github.com/RandomLemon/kei/arisu   -> 可以
   `replace ... => ../kei`、`=> ../kei-plugin-agent`）。**禁止新增第三方依赖**——需要新依赖时先在上游
   仓库解决，`go.mod` 里出现新的 `require` 即视为回归。
 - 适配器与插件只能经注册表接入：新增平台/插件时只加空导入与配置，禁止在 `cmd/arisu` 里写
-  `switch adapter`、`if platform == "feishu"` 之类的分支。
+  `switch adapter`、`if platform == "onebot"` 之类的分支。
 - 配置与密钥只经配置对象读取；禁止在代码里 `os.Getenv` 或读配置文件。
 - 配置键的权威清单在上游文档；本仓库只在 `configs/config.yaml` 给示例，不定义新键。
   上游新增/改名的键要同步示例配置与 `README.md`。
@@ -86,7 +86,7 @@ go test -race ./...   # 必过：e2e 里有多协程与定时器
   -> `engine.Run`），断言**可观察行为**（mock 适配器记录到的消息内容、发送目标、优雅退出）。
 - LLM 用 `httptest.Server` 桩，禁止依赖真实网络与真实平台；端口用 `freeAddr` 现取，禁止写死。
 - 禁止断言实现细节（wiring、字段拷贝、日志文案），禁止为测试引入第三方 mock 库。
-- 单测覆盖不到的平台真机行为（OneBot 反向 WebSocket、飞书回调）由上游仓库的测试保证；
+- 单测覆盖不到的平台真机行为（OneBot 反向 WebSocket）由上游仓库的测试保证；
   本仓库的验证手段是 README「快速开始」的 mock 冒烟。
 
 ## 5. 项目结构
@@ -95,7 +95,7 @@ go test -race ./...   # 必过：e2e 里有多协程与定时器
 cmd/arisu/main.go       入口：加载配置 -> 装配适配器/插件 -> 启动引擎 -> 优雅退出（无平台分支）
 cmd/arisu/external.go   外部插件与外部适配器的 gRPC 通道装配（与 kei cmd/bot 逐字一致）
 cmd/arisu/e2e_test.go   端到端测试（真实引擎 + mock 适配器 + LLM 桩 + 优雅退出）
-configs/config.yaml     示例配置：mock/OneBot/飞书 + echo/manage/agent
+configs/config.yaml     示例配置：mock/OneBot + echo/manage/agent
 flake.nix               devShell（go 工具链）与 formatter
 .envrc                  direnv：进入目录自动 `nix develop`
 ```

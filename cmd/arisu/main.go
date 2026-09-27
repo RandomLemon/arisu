@@ -36,7 +36,6 @@ import (
 
 	// 内置适配器与插件通过空导入注册到各自的注册表，是否启用由配置决定。
 	// 第三方适配器（独立包或独立 module）以同样方式接入，无需改动本文件以外的代码。
-	_ "github.com/RandomLemon/kei/adapters/feishu"
 	_ "github.com/RandomLemon/kei/adapters/mock"
 	_ "github.com/RandomLemon/kei/adapters/onebot"
 	_ "github.com/RandomLemon/kei/plugins/echo"
