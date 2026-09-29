@@ -1,6 +1,6 @@
 # arisu 配置。
 #
-# 键语义与默认值见 kei 的 docs/configuration.md 与 kei-plugin-agent 的
+# 键语义与默认值见 kei 的 docs/configuration.md 与 kei-plugin-persona 的
 # docs/configuration.md；本文件只写「与默认值不同」或需要人工填写的键。
 #
 # 所有键都可以用环境变量覆盖（前缀 KEI_），例如：
@@ -73,7 +73,7 @@ plugins:
     plugins_admin_only: true   # /plugins 仅管理员可用（需配置 auth.admin_users）
 
   # LLM 人格代理：群聊里按人格预设偶尔插话，私聊必回。
-  # 完整键表与默认值见 kei-plugin-agent 的 docs/configuration.md 第 10 节。
+  # 完整键表与默认值见 kei-plugin-persona 的 docs/configuration.md 第 10 节。
   agent:
     enabled: true
 

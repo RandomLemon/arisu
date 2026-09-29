@@ -2,7 +2,7 @@
 
 `arisu` 仓库的硬性规则与结构概览。设计细节、配置键语义、接口契约**不在这里**：
 它们属于上游框架与插件，权威文档是 [`../kei/docs/`](../kei/docs/) 与
-[`../kei-plugin-agent/docs/`](../kei-plugin-agent/docs/)。改动前先读对应上游文档与既有实现。
+[`../kei-plugin-persona/docs/`](../kei-plugin-persona/docs/)。改动前先读对应上游文档与既有实现。
 
 ## 1. 项目定位
 
@@ -11,7 +11,8 @@
   子目录——宿主只有一个 `main` 包。
 - 它是 [`kei`](https://github.com/RandomLemon/kei) 的宿主二进制：装配适配器与插件、启动引擎、
   优雅退出；业务逻辑一律在上游仓库或独立 module 里，本仓库不实现平台协议、不实现插件逻辑。
-- 内置 [`kei-plugin-agent`](https://github.com/RandomLemon/kei-plugin-agent)（插件名 `agent`）。
+- 内置 [`kei-plugin-persona`](https://github.com/RandomLemon/kei-plugin-persona)（仓库现名；
+  module path `github.com/RandomLemon/kei-plugin-agent` 与插件名 `agent` 未变）。
 
 ### 1.1 module path
 
@@ -44,7 +45,7 @@
 ### 2.1 依赖与分层
 
 - 只依赖 `github.com/RandomLemon/kei` 与 `github.com/RandomLemon/kei-plugin-agent`（本地走
-  `replace ... => ../kei`、`=> ../kei-plugin-agent`）。**禁止新增第三方依赖**——需要新依赖时先在上游
+  `replace ... => ../kei`、`=> ../kei-plugin-persona`）。**禁止新增第三方依赖**——需要新依赖时先在上游
   仓库解决，`go.mod` 里出现新的 `require` 即视为回归。
 - 适配器与插件只能经注册表接入：新增平台/插件时只加空导入与配置，禁止在 `main.go` 里写
   `switch adapter`、`if platform == "onebot"` 之类的分支。
@@ -63,10 +64,10 @@
 
 - `flake.nix` 只提供 `devShell`（go / gopls / golangci-lint / dlv / jq / curl / python3）与
   `formatter`；`.envrc` 走 direnv `use flake`。`GOTOOLCHAIN=local` 已固定。
-- **不提供 `packages`/`checks`/`apps`**：构建依赖同级 kei 与 kei-plugin-agent 检出，而 flake 输入与
+- **不提供 `packages`/`checks`/`apps`**：构建依赖同级 kei 与 kei-plugin-persona 检出，而 flake 输入与
   path 字面量都逃不出 store（`path:../kei` 会被解析到 flake store 副本的 `../kei`，
   `builtins.path { path = ../kei; }` 在 pure 模式下直接报错）。二进制在 devShell 内用 `go build` 产出。
-  与 `../kei-plugin-agent` 的 flake 保持同一种做法。
+  与 `../kei-plugin-persona` 的 flake 保持同一种做法。
 
 ## 3. 质量门（合并前必须全绿）
 

@@ -1,8 +1,9 @@
 # arisu
 
 基于 [kei](https://github.com/RandomLemon/kei) 框架的聊天机器人，内置
-[kei-plugin-agent](https://github.com/RandomLemon/kei-plugin-agent)「LLM 人格代理」插件：
-在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。
+[kei-plugin-persona](https://github.com/RandomLemon/kei-plugin-persona)「LLM 人格代理」插件：
+在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。（插件仓库现名 `kei-plugin-persona`，
+其 module path 与插件名仍是 `github.com/RandomLemon/kei-plugin-agent` / `agent`。）
 
 - 平台：OneBot v11（QQ）、mock（本地联调）。适配器与插件全部经 kei 的注册表装配，
   `main.go` 内不出现任何平台名分支。
@@ -44,10 +45,10 @@ kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 
 ## 环境准备（Nix + direnv）
 
 ```bash
-# arisu 依赖同级目录的 kei 与 kei-plugin-agent 检出（go.mod 的 replace 指向它们）
+# arisu 依赖同级目录的 kei 与 kei-plugin-persona 检出（go.mod 的 replace 指向它们）
 cd <父目录>
 git clone https://github.com/RandomLemon/kei
-git clone https://github.com/RandomLemon/kei-plugin-agent
+git clone https://github.com/RandomLemon/kei-plugin-persona
 git clone https://github.com/RandomLemon/arisu
 
 cd arisu
@@ -60,7 +61,7 @@ nix develop --command go test -race ./...
 ```
 
 `flake.nix` 只提供 `devShell` 与 `formatter`：构建依赖同级检出，而 flake 输入与 path 字面量
-都逃不出 store，沙箱里拿不到 `../kei`，所以不提供 `packages`/`checks`（与 `../kei-plugin-agent`
+都逃不出 store，沙箱里拿不到 `../kei`，所以不提供 `packages`/`checks`（与 `../kei-plugin-persona`
 的做法一致）。二进制在 devShell 内用 go 产出。
 
 ## 快速开始（本地联调）
@@ -129,7 +130,7 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 
 ## 配置
 
-配置键的权威说明在 kei 的 `docs/configuration.md`（框架配置）与 kei-plugin-agent 的
+配置键的权威说明在 kei 的 `docs/configuration.md`（框架配置）与 kei-plugin-persona 的
 `docs/configuration.md`（`plugins.agent` 全量键表），本仓库只给一份可直接用的示例：
 `config.yaml`。
 

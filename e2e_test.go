@@ -42,7 +42,7 @@ func TestRunEndToEnd(t *testing.T) {
 	waitHealthy(t, "http://"+ctrl+"/healthz", 10*time.Second)
 
 	// 私聊必回，且新会话首条即回：状态经 Storage 懒加载，加载未完成时入站消息被暂存，
-	// 完成后补判一次（见 kei-plugin-agent 的 docs/architecture.md §4.1/4.5）。
+	// 完成后补判一次（见 kei-plugin-persona 的 docs/architecture.md §4.1/4.5）。
 	inject(t, ctrl, map[string]any{"kind": "private", "text": "爱丽丝在吗", "user_id": "u1", "user_name": "张三"})
 
 	rec := waitSend(t, ctrl, 10*time.Second, func(r mock.SendRecord) bool {
