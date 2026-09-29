@@ -26,7 +26,7 @@ flake.nix               devShell（go 工具链）与 formatter
 ## 为什么入口在根目录（`main.go`）
 
 kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 配置、装配适配器与
-插件（含外部 gRPC 通道）、启动引擎、优雅退出，全部由一次
+插件、启动引擎、优雅退出，全部由一次
 `kei.Run(ctx, kei.Options{ConfigFile: "config.yaml"})` 完成。因此本仓库的入口只是一个
 薄壳——模块根目录的 `main.go` 与 kei 的 `cmd/bot/main.go` 同构，只做 flag、信号与空导入：
 
@@ -39,8 +39,7 @@ kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 
   `github.com/RandomLemon/kei/arisu`：kei 曾不公开装配 API，宿主必须让 import path 落在
   `github.com/RandomLemon/kei/` 之下才能访问 `internal/`；`pkg/kei` 门面公开后该约束消失，
   本仓库不再依赖任何 `internal/` 包，module path 随之回到顶层。
-- 升级 kei 后同步 `main.go`；装配逻辑（含外部插件/外部适配器 gRPC 通道）不在本
-  仓库，不需要复制。
+- 升级 kei 后同步 `main.go`；装配逻辑不在本仓库，不需要复制。
 
 ## 环境准备（Nix + direnv）
 
@@ -121,12 +120,12 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 ### OneBot v11（QQ）
 
 `config.yaml` 里 `qq-main` 用 `mode: reverse_ws`（缺省）：OneBot 实现主动连入
-`ws://127.0.0.1:18082/onebot/ws`。NapCat / Lagrange 里把反向 WebSocket 地址填成该地址即可；
+`ws://127.0.0.1:18082/onebot/v11/ws`。NapCat / Lagrange 里把反向 WebSocket 地址填成该地址即可；
 `secret` 非空时两者都要带同一令牌。其他三种模式（`forward_http`/`reverse_http`/`forward_ws`）
 只需改 `mode` 与 `api_url`/`ws_url`，键的语义见 kei 的
 [docs/configuration.md](https://github.com/RandomLemon/kei/blob/main/docs/configuration.md)。
 
-建议把 `bots[].self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址（否则任意 @ 都算）。
+建议把 `plugins.agent.self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址（否则任意 @ 都算）。
 
 ## 配置
 
@@ -134,7 +133,7 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 `docs/configuration.md`（`plugins.agent` 全量键表），本仓库只给一份可直接用的示例：
 `config.yaml`。
 
-顶层段：`log`、`metrics`、`limits`、`auth`、`grpc`、`adapters`、`bots`、`plugins`。
+顶层段：`log`、`metrics`、`limits`、`auth`、`adapters`、`bots`、`plugins`。
 全部键都可用环境变量覆盖（前缀 `KEI_`，`-`/`.`/`_` 等价、大小写不敏感）：
 
 ```bash
