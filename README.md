@@ -33,8 +33,8 @@ kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 
 - 源码（`main.go`、`e2e_test.go`）与示例配置 `config.yaml` 直接放在模块根目录，没有
   `cmd/`、`configs/` 子目录：宿主只有一个 `main` 包，多一层目录换不来任何隔离。
 - 与 kei cmd/bot 的差异只有四处：额外空导入 `kei-plugin-agent`；`run(ctx, args)` 接收调用方
-  传入的 context（信号处理留在 `main`，测试可直接驱动全链路）；flags 集名与错误前缀为
-  `arisu`；默认配置路径是根目录的 `config.yaml`（上游为 `configs/config.yaml`）。
+  传入的 context（信号处理留在 `main`，测试可直接驱动全链路）；flags 集名、错误前缀与版本
+  输出为 `arisu`；默认配置路径是根目录的 `config.yaml`（上游为 `configs/config.yaml`）。
 - module path 是 `github.com/RandomLemon/arisu`（独立 module）。历史形态是
   `github.com/RandomLemon/kei/arisu`：kei 曾不公开装配 API，宿主必须让 import path 落在
   `github.com/RandomLemon/kei/` 之下才能访问 `internal/`；`pkg/kei` 门面公开后该约束消失，
@@ -154,6 +154,7 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 | `/echo <文字>` | 原样回显，用来确认链路通 | 所有人 |
 | `/ping`、`/version`、`/adapters` | 存活、版本、适配器绑定 | 所有人 |
 | `/plugins` | 已注册插件 | 管理员（`manage.plugins_admin_only`） |
+| `/admin` | 管理员权限自检（Auth 中间件演示） | 管理员 |
 | `/agent status \| persona [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
 | `/agent policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
 | `/agent list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |

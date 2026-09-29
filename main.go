@@ -12,7 +12,7 @@
 //     本二进制，配置文件里 plugins.agent.enabled: true 即启用；
 //  2. run 接收调用方传入的 context，而不是在 run 内部自己装信号处理器：main 负责
 //     SIGINT/SIGTERM，测试可以直接驱动「启动 -> 收事件 -> 优雅退出」全链路；
-//  3. flag 集名与错误前缀用 arisu；
+//  3. flag 集名、错误前缀与版本输出用 arisu（`arisu v<ver> (kei v<ver>)`）；
 //  4. 默认配置路径是模块根目录的 config.yaml（kei cmd/bot 是 configs/config.yaml）。
 package main
 

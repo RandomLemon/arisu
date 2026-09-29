@@ -34,7 +34,7 @@
 
 |文件|与上游的关系|
 |---|---|
-|`main.go`|与 `../kei/cmd/bot/main.go` 同构（flag + 信号 + 空导入 + 一次 `kei.Run`），差异只有四处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`），flag 集名与错误前缀为 arisu；默认配置路径是模块根目录的 `config.yaml`（上游是 `configs/config.yaml`）|
+|`main.go`|与 `../kei/cmd/bot/main.go` 同构（flag + 信号 + 空导入 + 一次 `kei.Run`），差异只有四处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-agent`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`），flag 集名、错误前缀与版本输出为 arisu；默认配置路径是模块根目录的 `config.yaml`（上游是 `configs/config.yaml`）|
 
 升级 kei 后同步这个文件；差异应保持为上面四处。门面 API（`kei.Options` 等）变动时同步本文件
 与 `README.md`，**不要**在本仓库重新实现装配。
