@@ -143,6 +143,7 @@ KEI_STORAGE_TYPE=sqlite                        # memory（默认）| sqlite | my
 KEI_STORAGE_DSN=/var/lib/arisu/storage.db      # sqlite 为文件路径，mysql 需带 parseTime=true
 KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx        # 密钥只走环境变量，不写进文件
 KEI_PLUGINS_PERSONA_LLM_MODEL=qwen2.5:7b
+KEI_PLUGINS_PERSONA_SELF_IDS=123456789         # 机器人自己的 QQ；不填则任意 At 都算寻址
 KEI_PLUGINS_PERSONA_PRIVATE_POLICY=whitelist
 KEI_BOTS_QQ_MAIN_ENABLED=false                # 只停用这一个实例
 KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
@@ -152,7 +153,12 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 `sqlite`/`mysql` 让插件状态持久化，`cleanup_interval` 等其余键原样交给对应后端（全表见 kei 的
 `docs/configuration.md` §12.5）。
 
-`personas` / `bindings` / `group_list` / `private_list` 这类复合结构不支持环境变量覆盖，写在 YAML 里。
+`personas` / `bindings` / `llm_extra_headers` 这类结构建议写在 YAML 里：环境变量值会再走一层 YAML 解析，
+写成内联字面量也能生效（如 `KEI_PLUGINS_PERSONA_BINDINGS='[{channel_id: "389372103", persona: default}]'`），
+但多行 prompt 只能写成 `\n` 转义、引号要配对，可读性差。
+`self_ids` / `group_list` / `private_list` 这类扁平列表键没有这个问题，裸标量或逗号分隔即可：
+`KEI_PLUGINS_PERSONA_SELF_IDS=123456789`、`KEI_PLUGINS_PERSONA_GROUP_LIST="389372103,389372104"`。
+覆盖是否命中可在启动日志确认（`log.level: debug`，文案 `环境变量覆盖配置`）。
 
 ## 命令
 
