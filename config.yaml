@@ -5,6 +5,8 @@
 #
 # 所有键都可以用环境变量覆盖（前缀 KEI_），例如：
 #   KEI_LOG_LEVEL=debug
+#   KEI_STORAGE_TYPE=sqlite                         # 存储后端：memory（默认）| sqlite | mysql
+#   KEI_STORAGE_DSN=/var/lib/arisu/storage.db
 #   KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx            # 密钥不要写进本文件
 #   KEI_PLUGINS_AGENT_LLM_BASE_URL=http://127.0.0.1:11434/v1
 #   KEI_PLUGINS_AGENT_LLM_MODEL=qwen2.5:7b
@@ -19,6 +21,15 @@ log:
 metrics:
   addr: 127.0.0.1:19091
 
+# 插件与适配器共用的键值存储。type: memory | sqlite | mysql（默认 memory）。
+# memory 重启即丢；sqlite 的 dsn 是文件路径；mysql 的 dsn 必须带 parseTime=true。
+# 未知 type 在装配期报错并列出已注册类型。也可用 KEI_STORAGE_TYPE / KEI_STORAGE_DSN 覆盖。
+# storage:
+#   type: sqlite
+#   dsn: /var/lib/arisu/storage.db
+#   cleanup_interval: 1m        # 过期行清理间隔，0 关闭后台清理
+#   max_open_conns: 10          # 仅 mysql
+
 # 限流：0 表示不限制（LLM 插件自带并发上限 limits_max_concurrent）。
 limits:
   handler_rate: 0    # 每用户每秒允许处理的规则次数
@@ -26,7 +37,7 @@ limits:
   send_rate: 0       # 每个 bot 每秒允许发送的条数
   send_burst: 0
 
-# 管理员名单：/agent 命令、/plugins（manage.plugins_admin_only）都要求发送者在此列表。
+# 管理员名单：/agent 命令、/manage plugins（manage.plugins_admin_only）都要求发送者在此列表。
 # 填 QQ 号（OneBot），例如 ["123456"]。
 auth:
   admin_users: []
@@ -67,10 +78,10 @@ plugins:
   echo:
     enabled: true
 
-  # /ping、/version、/plugins、/adapters。
+  # /manage ping、/manage version、/manage plugins、/manage adapters。
   manage:
     enabled: true
-    plugins_admin_only: true   # /plugins 仅管理员可用（需配置 auth.admin_users）
+    plugins_admin_only: true   # /manage plugins 仅管理员可用（需配置 auth.admin_users）
 
   # LLM 人格代理：群聊里按人格预设偶尔插话，私聊必回。
   # 完整键表与默认值见 kei-plugin-persona 的 docs/configuration.md 第 10 节。

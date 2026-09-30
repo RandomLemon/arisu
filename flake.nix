@@ -18,6 +18,7 @@
       devTools =
         pkgs: with pkgs; [
           go # 编译器 / go test / go vet
+          gcc # cgo 编译 mattn/go-sqlite3（上游 kei 的 sqlite 存储后端）需要
           gopls # LSP
           gotools # goimports / guru 等辅助工具
           golangci-lint # 静态检查（可选）
@@ -43,6 +44,8 @@
 
           # 只使用 devShell 提供的 Go，禁止 go 自动下载其它 toolchain。
           env.GOTOOLCHAIN = "local";
+          # sqlite 存储后端依赖 cgo；显式固定，与上游 kei 的 flake 一致。
+          env.CGO_ENABLED = "1";
 
           shellHook = ''
             echo "arisu dev shell · $(go version)"

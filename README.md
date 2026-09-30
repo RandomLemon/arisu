@@ -8,8 +8,8 @@
 - 平台：OneBot v11（QQ）、mock（本地联调）。适配器与插件全部经 kei 的注册表装配，
   `main.go` 内不出现任何平台名分支。
 - 插件：`agent`（LLM 人格代理）、`echo`、`manage`。
-- 工具链：Go 1.25+，由 `flake.nix` + direnv 提供（`nix develop`），零第三方运行时依赖
-  由 arisu 自身引入。
+- 工具链：Go 1.25+，由 `flake.nix` + direnv 提供（`nix develop`）；arisu 自身不引入任何
+  直接第三方依赖，GORM 等间接依赖来自上游 kei 的存储后端。
 
 ## 目录结构
 
@@ -134,17 +134,23 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 `docs/configuration.md`（`plugins.agent` 全量键表），本仓库只给一份可直接用的示例：
 `config.yaml`。
 
-顶层段：`log`、`metrics`、`limits`、`auth`、`adapters`、`bots`、`plugins`。
+顶层段：`log`、`metrics`、`storage`、`limits`、`auth`、`adapters`、`bots`、`plugins`。
 全部键都可用环境变量覆盖（前缀 `KEI_`，`-`/`.`/`_` 等价、大小写不敏感）：
 
 ```bash
 KEI_LOG_LEVEL=debug
+KEI_STORAGE_TYPE=sqlite                        # memory（默认）| sqlite | mysql
+KEI_STORAGE_DSN=/var/lib/arisu/storage.db      # sqlite 为文件路径，mysql 需带 parseTime=true
 KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx          # 密钥只走环境变量，不写进文件
 KEI_PLUGINS_AGENT_LLM_MODEL=qwen2.5:7b
 KEI_PLUGINS_AGENT_PRIVATE_POLICY=whitelist
 KEI_BOTS_QQ_MAIN_ENABLED=false                # 只停用这一个实例
 KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 ```
+
+`storage` 段可整体省略，缺省即 `memory`（重启丢历史与 `/agent` 运行时覆盖）；改 `type` 为
+`sqlite`/`mysql` 让插件状态持久化，`cleanup_interval` 等其余键原样交给对应后端（全表见 kei 的
+`docs/configuration.md` §12.5）。
 
 `personas` / `bindings` / `group_list` / `private_list` 这类复合结构不支持环境变量覆盖，写在 YAML 里。
 
@@ -153,9 +159,9 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
 | `/echo <文字>` | 原样回显，用来确认链路通 | 所有人 |
-| `/ping`、`/version`、`/adapters` | 存活、版本、适配器绑定 | 所有人 |
-| `/plugins` | 已注册插件 | 管理员（`manage.plugins_admin_only`） |
-| `/admin` | 管理员权限自检（Auth 中间件演示） | 管理员 |
+| `/manage ping`、`/manage version`、`/manage adapters` | 存活、版本、适配器绑定 | 所有人 |
+| `/manage plugins` | 已注册插件 | 管理员（`manage.plugins_admin_only`） |
+| `/manage admin` | 管理员权限自检（Auth 中间件演示） | 管理员 |
 | `/agent status \| persona [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
 | `/agent policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
 | `/agent list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |
@@ -183,12 +189,15 @@ nix develop --command go build -trimpath -ldflags '-s -w' -o bin/arisu .
 KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx ./bin/arisu -config /etc/arisu/config.yaml
 ```
 
+- 构建需要 cgo：上游 kei 的 sqlite 存储后端经 `mattn/go-sqlite3` 编译，`flake.nix` 的 devShell
+  已装 `gcc` 并固定 `CGO_ENABLED=1`；在 devShell 外构建请自行保证。
 - 健康检查 `GET /metrics 所在 addr 的 /healthz`，指标 `GET /metrics`（Prometheus 文本格式）。
 - 收到 SIGINT/SIGTERM 后优雅退出：排空已入队事件、停止适配器与插件。
 
 ## 已知限制
 
-- `Storage` 是 kei 的内存实现，重启丢历史与 `/agent` 的运行时覆盖；要持久化就把自己的
-  `bot.Storage` 实现（如 Redis/SQLite）经 `kei.Run(ctx, kei.Options{Storage: ...})` 注入。
+- 存储缺省是 kei 的内存实现（`storage.type: memory`），重启丢历史与 `/agent` 的运行时覆盖；
+  改成 `storage.type: sqlite`（`dsn` 为文件路径）或 `mysql` 即持久化，或把自己的
+  `bot.Storage` 实现经 `kei.Run(ctx, kei.Options{Storage: ...})` 注入。
 - 同一平台多个 bot 实例时，主动发送必须在 `bot.Target.BotID` 指定实例名；回复当前会话由
   `TargetFromEvent` 自动带上，不受影响。
