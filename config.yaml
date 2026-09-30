@@ -7,9 +7,9 @@
 #   KEI_LOG_LEVEL=debug
 #   KEI_STORAGE_TYPE=sqlite                         # 存储后端：memory（默认）| sqlite | mysql
 #   KEI_STORAGE_DSN=/var/lib/arisu/storage.db
-#   KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx            # 密钥不要写进本文件
-#   KEI_PLUGINS_AGENT_LLM_BASE_URL=http://127.0.0.1:11434/v1
-#   KEI_PLUGINS_AGENT_LLM_MODEL=qwen2.5:7b
+#   KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx          # 密钥不要写进本文件
+#   KEI_PLUGINS_PERSONA_LLM_BASE_URL=http://127.0.0.1:11434/v1
+#   KEI_PLUGINS_PERSONA_LLM_MODEL=qwen2.5:7b
 #   KEI_AUTH_ADMIN_USERS=123456                     # 逗号分隔
 #   KEI_BOTS_MOCK_MAIN_ENABLED=false                # 只停用这一个实例
 
@@ -37,7 +37,7 @@ limits:
   send_rate: 0       # 每个 bot 每秒允许发送的条数
   send_burst: 0
 
-# 管理员名单：/agent 命令、/manage plugins（manage.plugins_admin_only）都要求发送者在此列表。
+# 管理员名单：/persona 命令、/manage plugins（manage.plugins_admin_only）都要求发送者在此列表。
 # 填 QQ 号（OneBot），例如 ["123456"]。
 auth:
   admin_users: []
@@ -78,14 +78,15 @@ plugins:
   echo:
     enabled: true
 
-  # /manage ping、/manage version、/manage plugins、/manage adapters。
+  # /manage ping、/manage version、/manage plugins、/manage adapters、/manage admin、
+  # /manage status、/manage help；status 与 admin 始终只对管理员生效。
   manage:
     enabled: true
     plugins_admin_only: true   # /manage plugins 仅管理员可用（需配置 auth.admin_users）
 
   # LLM 人格代理：群聊里按人格预设偶尔插话，私聊必回。
   # 完整键表与默认值见 kei-plugin-persona 的 docs/configuration.md 第 10 节。
-  agent:
+  persona:
     enabled: true
 
     # ---- 人格 ----
@@ -164,7 +165,7 @@ plugins:
 
     # ---- LLM（OpenAI 兼容）----
     llm_base_url: "http://192.168.200.101:8001/v1"
-    llm_api_key: ""             # 留空则不发送 Authorization 头；建议用 KEI_PLUGINS_AGENT_LLM_API_KEY
+    llm_api_key: ""             # 留空则不发送 Authorization 头；建议用 KEI_PLUGINS_PERSONA_LLM_API_KEY
     llm_model: "qwen3.6-35b-a3b-mtp"
     llm_temperature: 0.8
     llm_max_tokens: 1024

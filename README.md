@@ -2,12 +2,12 @@
 
 基于 [kei](https://github.com/RandomLemon/kei) 框架的聊天机器人，内置
 [kei-plugin-persona](https://github.com/RandomLemon/kei-plugin-persona)「LLM 人格代理」插件：
-在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。（插件仓库现名 `kei-plugin-persona`，
-其 module path 与插件名仍是 `github.com/RandomLemon/kei-plugin-agent` / `agent`。）
+在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。（插件仓库、module path、插件名与
+命令前缀统一为 `kei-plugin-persona` / `github.com/RandomLemon/kei-plugin-persona` / `persona`。）
 
 - 平台：OneBot v11（QQ）、mock（本地联调）。适配器与插件全部经 kei 的注册表装配，
   `main.go` 内不出现任何平台名分支。
-- 插件：`agent`（LLM 人格代理）、`echo`、`manage`。
+- 插件：`persona`（LLM 人格代理）、`echo`、`manage`。
 - 工具链：Go 1.25+，由 `flake.nix` + direnv 提供（`nix develop`）；arisu 自身不引入任何
   直接第三方依赖，GORM 等间接依赖来自上游 kei 的存储后端。
 
@@ -16,7 +16,7 @@
 ```text
 main.go                 入口薄壳：flag + 信号 + 空导入 + 一次 kei.Run（装配全部委托 pkg/kei）
 e2e_test.go             端到端测试：真实引擎 + mock 适配器 + LLM 桩
-config.yaml             配置示例（mock/OneBot + echo/manage/agent）
+config.yaml             配置示例（mock/OneBot + echo/manage/persona）
 flake.nix               devShell（go 工具链）与 formatter
 .envrc                  direnv：进入目录自动 `nix develop`
 ```
@@ -33,7 +33,7 @@ kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 
 
 - 源码（`main.go`、`e2e_test.go`）与示例配置 `config.yaml` 直接放在模块根目录，没有
   `cmd/`、`configs/` 子目录：宿主只有一个 `main` 包，多一层目录换不来任何隔离。
-- 与 kei cmd/bot 的差异只有四处：额外空导入 `kei-plugin-agent`；`run(ctx, args)` 接收调用方
+- 与 kei cmd/bot 的差异只有四处：额外空导入 `kei-plugin-persona`；`run(ctx, args)` 接收调用方
   传入的 context（信号处理留在 `main`，测试可直接驱动全链路）；flags 集名、错误前缀与版本
   输出为 `arisu`；默认配置路径是根目录的 `config.yaml`（上游为 `configs/config.yaml`）。
 - module path 是 `github.com/RandomLemon/arisu`（独立 module）。历史形态是
@@ -84,10 +84,10 @@ class H(BaseHTTPRequestHandler):
 HTTPServer(('127.0.0.1', 19100), H).serve_forever()
 PY
 
-# 2) 起机器人（把 agent 的 LLM 指向桩服务；密钥类配置一律走环境变量）
+# 2) 起机器人（把 persona 的 LLM 指向桩服务；密钥类配置一律走环境变量）
 go build -o bin/arisu .
-KEI_PLUGINS_AGENT_LLM_BASE_URL=http://127.0.0.1:19100/v1 \
-KEI_PLUGINS_AGENT_LLM_MODEL=stub \
+KEI_PLUGINS_PERSONA_LLM_BASE_URL=http://127.0.0.1:19100/v1 \
+KEI_PLUGINS_PERSONA_LLM_MODEL=stub \
 KEI_AUTH_ADMIN_USERS=u1 \
 ./bin/arisu -config config.yaml
 
@@ -104,8 +104,8 @@ curl -sS 127.0.0.1:18080/sent | jq -c '.[] | {target: .Request.Target, text: .Re
 
 # 5) 管理员命令（auth.admin_users 里要有 u1）
 curl -sS -XPOST 127.0.0.1:18080/inject -H 'content-type: application/json' \
-  -d '{"text":"/agent status","user_id":"u1","channel_id":"g1"}'
-# 群里会收到：agent: 开 · persona=arisu(default) · 历史 0 条 · ...
+  -d '{"text":"/persona status","user_id":"u1","channel_id":"g1"}'
+# 群里会收到：persona: 开 · persona=xia(default) · 历史 0 条 · 近 1 小时回复 0/6 · 上次回复 从未 · llm 错误 0 · 已跳 0
 
 # 6) 指标与健康检查
 curl -sS 127.0.0.1:19090/healthz
@@ -114,7 +114,7 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 
 群聊随机插话同样可测：`{"text":"...","user_id":"u2","channel_id":"g1"}` 注入若干条，
 在 `random_probability` / `random_min_participants` / `random_cooldown` 允许时会插一句。
-把 `plugins.agent.llm_*` 指向任意 OpenAI 兼容服务（OpenAI、DeepSeek、Ollama、vLLM 等）即可。
+把 `plugins.persona.llm_*` 指向任意 OpenAI 兼容服务（OpenAI、DeepSeek、Ollama、vLLM 等）即可。
 
 ## 接入真实平台
 
@@ -126,12 +126,12 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 只需改 `mode` 与 `api_url`/`ws_url`，键的语义见 kei 的
 [docs/configuration.md](https://github.com/RandomLemon/kei/blob/main/docs/configuration.md)。
 
-建议把 `plugins.agent.self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址（否则任意 @ 都算）。
+建议把 `plugins.persona.self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址（否则任意 @ 都算）。
 
 ## 配置
 
 配置键的权威说明在 kei 的 `docs/configuration.md`（框架配置）与 kei-plugin-persona 的
-`docs/configuration.md`（`plugins.agent` 全量键表），本仓库只给一份可直接用的示例：
+`docs/configuration.md`（`plugins.persona` 全量键表），本仓库只给一份可直接用的示例：
 `config.yaml`。
 
 顶层段：`log`、`metrics`、`storage`、`limits`、`auth`、`adapters`、`bots`、`plugins`。
@@ -141,14 +141,14 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 KEI_LOG_LEVEL=debug
 KEI_STORAGE_TYPE=sqlite                        # memory（默认）| sqlite | mysql
 KEI_STORAGE_DSN=/var/lib/arisu/storage.db      # sqlite 为文件路径，mysql 需带 parseTime=true
-KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx          # 密钥只走环境变量，不写进文件
-KEI_PLUGINS_AGENT_LLM_MODEL=qwen2.5:7b
-KEI_PLUGINS_AGENT_PRIVATE_POLICY=whitelist
+KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx        # 密钥只走环境变量，不写进文件
+KEI_PLUGINS_PERSONA_LLM_MODEL=qwen2.5:7b
+KEI_PLUGINS_PERSONA_PRIVATE_POLICY=whitelist
 KEI_BOTS_QQ_MAIN_ENABLED=false                # 只停用这一个实例
 KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 ```
 
-`storage` 段可整体省略，缺省即 `memory`（重启丢历史与 `/agent` 运行时覆盖）；改 `type` 为
+`storage` 段可整体省略，缺省即 `memory`（重启丢历史与 `/persona` 运行时覆盖）；改 `type` 为
 `sqlite`/`mysql` 让插件状态持久化，`cleanup_interval` 等其余键原样交给对应后端（全表见 kei 的
 `docs/configuration.md` §12.5）。
 
@@ -159,12 +159,13 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 | 命令 | 说明 | 权限 |
 | --- | --- | --- |
 | `/echo <文字>` | 原样回显，用来确认链路通 | 所有人 |
-| `/manage ping`、`/manage version`、`/manage adapters` | 存活、版本、适配器绑定 | 所有人 |
+| `/manage ping`、`/manage version`、`/manage adapters`、`/manage help` | 存活、版本、适配器绑定、子命令清单 | 所有人 |
 | `/manage plugins` | 已注册插件 | 管理员（`manage.plugins_admin_only`） |
 | `/manage admin` | 管理员权限自检（Auth 中间件演示） | 管理员 |
-| `/agent status \| persona [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
-| `/agent policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
-| `/agent list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |
+| `/manage status` | 主机 CPU/内存/磁盘/GPU 状态 | 管理员（始终） |
+| `/persona status \| persona [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
+| `/persona policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
+| `/persona list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |
 
 管理员名单来自 `auth.admin_users`（或 `KEI_AUTH_ADMIN_USERS`）；私聊命令也要求发送者在名单内。
 
@@ -179,14 +180,14 @@ nix develop --command go test -race ./...
 ```
 
 `e2e_test.go` 起一个真实引擎（读临时配置 -> 装配 mock 适配器与全部进程内插件 ->
-注入事件 -> agent 调 LLM 桩 -> 断言发出的消息与发送目标 -> 取消 ctx 断言优雅退出），
+注入事件 -> persona 调 LLM 桩 -> 断言发出的消息与发送目标 -> 取消 ctx 断言优雅退出），
 LLM 用 `httptest.Server` 桩，不依赖外部网络与真实平台。
 
 ## 部署
 
 ```bash
 nix develop --command go build -trimpath -ldflags '-s -w' -o bin/arisu .
-KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx ./bin/arisu -config /etc/arisu/config.yaml
+KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx ./bin/arisu -config /etc/arisu/config.yaml
 ```
 
 - 构建需要 cgo：上游 kei 的 sqlite 存储后端经 `mattn/go-sqlite3` 编译，`flake.nix` 的 devShell
@@ -196,7 +197,7 @@ KEI_PLUGINS_AGENT_LLM_API_KEY=sk-xxx ./bin/arisu -config /etc/arisu/config.yaml
 
 ## 已知限制
 
-- 存储缺省是 kei 的内存实现（`storage.type: memory`），重启丢历史与 `/agent` 的运行时覆盖；
+- 存储缺省是 kei 的内存实现（`storage.type: memory`），重启丢历史与 `/persona` 的运行时覆盖；
   改成 `storage.type: sqlite`（`dsn` 为文件路径）或 `mysql` 即持久化，或把自己的
   `bot.Storage` 实现经 `kei.Run(ctx, kei.Options{Storage: ...})` 注入。
 - 同一平台多个 bot 实例时，主动发送必须在 `bot.Target.BotID` 指定实例名；回复当前会话由
