@@ -126,7 +126,8 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 只需改 `mode` 与 `api_url`/`ws_url`，键的语义见 kei 的
 [docs/configuration.md](https://github.com/RandomLemon/kei/blob/main/docs/configuration.md)。
 
-建议把 `plugins.persona.self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址（否则任意 @ 都算）。
+建议把 `plugins.persona.self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址；留空时任意 At 都算
+寻址（`@全体成员` 除外，它始终不算）。
 
 ## 配置
 
@@ -156,9 +157,27 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 `personas` / `bindings` / `llm_extra_headers` 这类结构建议写在 YAML 里：环境变量值会再走一层 YAML 解析，
 写成内联字面量也能生效（如 `KEI_PLUGINS_PERSONA_BINDINGS='[{channel_id: "389372103", persona: default}]'`），
 但多行 prompt 只能写成 `\n` 转义、引号要配对，可读性差。
-`self_ids` / `group_list` / `private_list` 这类扁平列表键没有这个问题，裸标量或逗号分隔即可：
+`self_ids` / `trigger_keywords` / `group_list` / `private_list` 这类扁平列表键没有这个问题，裸标量或逗号分隔即可：
 `KEI_PLUGINS_PERSONA_SELF_IDS=123456789`、`KEI_PLUGINS_PERSONA_GROUP_LIST="389372103,389372104"`。
+写在 YAML 里时列表元素按 YAML 语义转字符串，QQ 号与群号的裸数字写法同样有效（`self_ids: [123456789]` 等价于 `["123456789"]`）。
 覆盖是否命中可在启动日志确认（`log.level: debug`，文案 `环境变量覆盖配置`）。
+
+## 日志
+
+日志用 `log/slog` 字段化输出，`log.format: json` 可切换为 JSON，级别由 `log.level` 控制
+（示例配置是 `debug`；缺省 `info`）。
+
+- 每条收发消息按 INFO 记录：`收到消息`（字段 `platform`/`bot`/`event_id`/`message_id`/`kind`/
+  `user`/`user_name`/`channel`/`channel_name`/`content`）、`发送消息`（字段 `platform`/`bot`/
+  `kind`/`channel`/`user`/`content`，回复时另有 `reply_to`，平台返回时另有 `message_id`）。
+  `content` 把消息段渲染成单行 `type:值`，段间空格连接（文本原样、`at:123(昵称)`、图片/文件输出
+  URL 或文件标识、卡片只记类型名），例如 `content="text:/echo hi"`。
+  非消息事件（心跳等）不产生这类日志。
+- 该日志没有单独开关，可见性只由 `log.level` 决定：默认 `info` 可见，设为 `warn`/`error` 即关闭
+  （聊天内容不再落日志）。
+- 启动时按 DEBUG 逐条输出实际生效的环境变量覆盖（`环境变量覆盖配置`，字段 `env`/`config`/`value`），
+  用于确认某个键来自 YAML 还是环境变量；取值敏感的变量（名含 `SECRET`/`TOKEN`/`PASSWORD`/
+  `API_KEY` 等）显示为 `******`。
 
 ## 命令
 

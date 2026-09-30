@@ -13,6 +13,8 @@
 #   KEI_AUTH_ADMIN_USERS=123456                     # 逗号分隔
 #   KEI_BOTS_MOCK_MAIN_ENABLED=false                # 只停用这一个实例
 
+# level: info（默认）及以上会逐条记录收发消息的内容（收到消息 / 发送消息，字段含 content）；
+# 不想把聊天内容写进日志就设 warn 或 error。环境变量覆盖明细（msg=环境变量覆盖配置）只在 debug 输出。
 log:
   level: debug    # debug | info | warn | error
   format: text   # text | json
@@ -129,13 +131,16 @@ plugins:
     default_persona: "xia"
 
     # ---- 触发与过滤 ----
-    self_ids: []                          # 建议填机器人自己的 QQ 号，避免 @ 到别人也算寻址
+    # 填机器人自己的 QQ 号：只有 @ 到它才算寻址；留空则任意 At 都算寻址（@全体成员除外）。
+    # 列表元素按 YAML 语义转字符串，裸数字写法可用：self_ids: [123456789] 等价于 ["123456789"]。
+    self_ids: []
     trigger_keywords: ["小霞", "itxia"]  # 名字被提到就算寻址
     trigger_min_chars: 2
     ignore_bots: true
     respond_to_commands: false
 
     # ---- 名单策略（off | open | whitelist | blacklist）----
+    # group_list / private_list 同样按 YAML 语义取值，裸数字写法可用（如 group_list: [389372103]）。
     group_policy: "whitelist"        # 匹配 ev.Channel.ID（群号）
     group_list: []
     private_policy: "open"      # 匹配 ev.Sender.ID（QQ 号）；私聊必回
