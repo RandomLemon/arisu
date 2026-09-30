@@ -21,3 +21,6 @@ coverage.txt
 
 # data
 *.sqlite
+
+# other
+start.sh
