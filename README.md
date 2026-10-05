@@ -115,6 +115,9 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 群聊随机插话同样可测：`{"text":"...","user_id":"u2","channel_id":"g1"}` 注入若干条，
 在 `random_probability` / `random_min_participants` / `random_cooldown` 允许时会插一句。
 把 `plugins.persona.llm_*` 指向任意 OpenAI 兼容服务（OpenAI、DeepSeek、Ollama、vLLM 等）即可。
+需要让机器人「看图」时把 `llm_vision_enabled: true` 并换成视觉模型：入站图片由插件自行下载后以
+base64 内联发给 LLM（不再传网址），单次最多 `llm_vision_max_images` 张、单张上限
+`llm_vision_max_image_bytes`，超限或下载失败的图丢弃，不影响文本。
 
 ## 接入真实平台
 
@@ -188,7 +191,7 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 | `/manage plugins` | 已注册插件 | 管理员（`manage.plugins_admin_only`） |
 | `/manage admin` | 管理员权限自检（Auth 中间件演示） | 管理员 |
 | `/manage status` | 主机 CPU/内存/磁盘/GPU 状态 | 管理员（始终） |
-| `/persona status \| persona [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
+| `/persona status \| switch [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
 | `/persona policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
 | `/persona list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |
 
