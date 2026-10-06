@@ -117,7 +117,8 @@ curl -sS 127.0.0.1:19090/metrics | grep kei_events
 把 `plugins.persona.llm_*` 指向任意 OpenAI 兼容服务（OpenAI、DeepSeek、Ollama、vLLM 等）即可。
 需要让机器人「看图」时把 `llm_vision_enabled: true` 并换成视觉模型：入站图片由插件自行下载后以
 base64 内联发给 LLM（不再传网址），单次最多 `llm_vision_max_images` 张、单张上限
-`llm_vision_max_image_bytes`，超限或下载失败的图丢弃，不影响文本。
+`llm_vision_max_image_bytes`；`llm_vision_allowed_formats` 非空时只发清单内的格式（大小写不敏感、
+可写 `image/` 前缀、`jpg` 等价 `jpeg`），清单外或超限、下载失败的图丢弃，不影响文本。
 
 ## 接入真实平台
 
@@ -149,6 +150,7 @@ KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx        # 密钥只走环境变量，不�
 KEI_PLUGINS_PERSONA_LLM_MODEL=qwen2.5:7b
 KEI_PLUGINS_PERSONA_SELF_IDS=123456789         # 机器人自己的 QQ；不填则任意 At 都算寻址
 KEI_PLUGINS_PERSONA_PRIVATE_POLICY=whitelist
+KEI_PLUGINS_PERSONA_LLM_VISION_ALLOWED_FORMATS="jpeg,png,gif"   # 空 = 不过滤图片格式
 KEI_BOTS_QQ_MAIN_ENABLED=false                # 只停用这一个实例
 KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 ```
@@ -160,9 +162,11 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 `personas` / `bindings` / `llm_extra_headers` 这类结构建议写在 YAML 里：环境变量值会再走一层 YAML 解析，
 写成内联字面量也能生效（如 `KEI_PLUGINS_PERSONA_BINDINGS='[{channel_id: "389372103", persona: default}]'`），
 但多行 prompt 只能写成 `\n` 转义、引号要配对，可读性差。
-`self_ids` / `trigger_keywords` / `group_list` / `private_list` 这类扁平列表键没有这个问题，裸标量或逗号分隔即可：
-`KEI_PLUGINS_PERSONA_SELF_IDS=123456789`、`KEI_PLUGINS_PERSONA_GROUP_LIST="389372103,389372104"`。
-写在 YAML 里时列表元素按 YAML 语义转字符串，QQ 号与群号的裸数字写法同样有效（`self_ids: [123456789]` 等价于 `["123456789"]`）。
+`self_ids` / `trigger_keywords` / `group_list` / `private_list` / `llm_vision_allowed_formats` 这类扁平列表键没有这个问题，裸标量或逗号分隔即可：
+`KEI_PLUGINS_PERSONA_SELF_IDS=123456789`、`KEI_PLUGINS_PERSONA_GROUP_LIST="389372103,389372104"`、
+`KEI_PLUGINS_PERSONA_LLM_VISION_ALLOWED_FORMATS="jpeg,png,gif"`。
+写在 YAML 里时列表元素按 YAML 语义转字符串，QQ 号与群号的裸数字写法同样有效（`self_ids: [123456789]` 等价于 `["123456789"]`）；
+`llm_vision_allowed_formats` 的元素读取后归一：去参数与 `image/` 前缀、转小写、`jpg`→`jpeg`，统一后为空即按不过滤处理。
 覆盖是否命中可在启动日志确认（`log.level: debug`，文案 `环境变量覆盖配置`）。
 
 ## 日志

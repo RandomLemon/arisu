@@ -186,6 +186,8 @@ plugins:
     llm_vision_enabled: true   # 开启后需配视觉模型（如 gpt-4o-mini）；图片由插件下载后内联
     llm_vision_max_images: 2    # 单次请求最多附加的图片数，0 表示不附加
     llm_vision_max_image_bytes: 4096000   # 单张图片下载体积上限（字节），超限丢弃
+    llm_vision_allowed_formats: []   # 图片格式白名单（扁平列表键），如 ["jpeg","png","gif"]；空 = 不过滤
+                                     # 匹配大小写不敏感、可写 image/ 前缀、jpg 等价 jpeg；清单外的图按格式丢弃
 
     # ---- 回复 ----
     reply_max_chars: 160
