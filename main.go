@@ -9,7 +9,8 @@
 // kei cmd/bot 的差异只有四处：
 //
 //  1. 额外空导入 github.com/RandomLemon/kei-plugin-persona，把「LLM 人格代理」插件打进
-//     本二进制，配置文件里 plugins.persona.enabled: true 即启用；
+//     本二进制，配置文件里 plugins.persona.enabled: true 即启用（插件仓库已改名为
+//     kei-plugin-agent，管理命令前缀为 /agent；module path 与插件名 persona 不变）；
 //  2. run 接收调用方传入的 context，而不是在 run 内部自己装信号处理器：main 负责
 //     SIGINT/SIGTERM，测试可以直接驱动「启动 -> 收事件 -> 优雅退出」全链路；
 //  3. flag 集名、错误前缀与版本输出用 arisu（`arisu v<ver> (kei v<ver>)`）；
@@ -34,7 +35,14 @@ import (
 	_ "github.com/RandomLemon/kei/plugins/echo"
 	_ "github.com/RandomLemon/kei/plugins/manage"
 
-	// arisu 相对 kei cmd/bot 的唯一功能性差异：LLM 人格代理插件。
+	// SQL 存储方言（sqlite/mysql）是显式 opt-in，与 kei cmd/bot 一致：config.yaml 用
+	// storage.type: sqlite，缺了这行会在装配期报未知存储类型（不用 SQL 后端时可删掉，
+	// 同时不再需要 GORM 与 cgo）。
+	_ "github.com/RandomLemon/kei/pkg/kei/sql"
+
+	// arisu 相对 kei cmd/bot 的唯一功能性差异：LLM 人格代理插件。插件仓库已改名为
+	// kei-plugin-agent、管理命令前缀为 /agent，但 module path 与插件名（persona、
+	// 配置键 plugins.persona）未变，因此空导入路径保持原样。
 	_ "github.com/RandomLemon/kei-plugin-persona"
 )
 

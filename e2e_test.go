@@ -42,7 +42,7 @@ func TestRunEndToEnd(t *testing.T) {
 	waitHealthy(t, "http://"+ctrl+"/healthz", 10*time.Second)
 
 	// 私聊必回，且新会话首条即回：状态经 Storage 懒加载，加载未完成时入站消息被暂存，
-	// 完成后补判一次（见 kei-plugin-persona 的 docs/architecture.md §4.1/4.5）。
+	// 完成后补判一次（见 kei-plugin-agent 的 docs/architecture.md §4.1/4.5）。
 	inject(t, ctrl, map[string]any{"kind": "private", "text": "爱丽丝在吗", "user_id": "u1", "user_name": "张三"})
 
 	rec := waitSend(t, ctrl, 10*time.Second, func(r mock.SendRecord) bool {
@@ -58,13 +58,13 @@ func TestRunEndToEnd(t *testing.T) {
 		t.Fatalf("私聊消息类型 = %q，期望 %q", rec.Request.Message.Kind, bot.MessagePrivate)
 	}
 
-	// /persona status：管理员命令（auth.admin_users 里的 u1），回复经 Reply 通道回到原会话。
-	inject(t, ctrl, map[string]any{"text": "/persona status", "user_id": "u1", "user_name": "张三", "channel_id": "g1"})
+	// /agent status：管理员命令（auth.admin_users 里的 u1），回复经 Reply 通道回到原会话。
+	inject(t, ctrl, map[string]any{"text": "/agent status", "user_id": "u1", "user_name": "张三", "channel_id": "g1"})
 	cmd := waitSend(t, ctrl, 10*time.Second, func(r mock.SendRecord) bool {
 		return strings.Contains(segText(t, r.Request.Message), "persona=")
 	})
 	if got := segText(t, cmd.Request.Message); !strings.Contains(got, "persona=arisu") {
-		t.Fatalf("/persona status 输出 = %q，期望含 persona=arisu", got)
+		t.Fatalf("/agent status 输出 = %q，期望含 persona=arisu", got)
 	}
 	if cmd.Request.Target.ChannelID != "g1" || cmd.Request.Target.Kind != bot.MessageGroup {
 		t.Fatalf("命令回复目标 = %+v，期望回到 g1 群", cmd.Request.Target)

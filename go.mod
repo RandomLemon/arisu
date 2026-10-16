@@ -23,14 +23,14 @@ require (
 	gorm.io/gorm v1.31.2 // indirect
 )
 
-// 两个依赖最新的 tag（v0.0.2）都早于当前契约版本（上游 HEAD）：本地开发/构建一律
-// replace 到同级检出，发布时再换成真实版本号。
-// 插件已连同仓库、module path 与插件名一起收口为 kei-plugin-persona / persona，因此
-// require 与 import path 都用 github.com/RandomLemon/kei-plugin-persona，与同级检出
-// ../kei-plugin-persona 同名。
+// 两个依赖最新的 tag（kei v0.0.3 / kei-plugin-persona v0.0.6）都早于当前契约版本
+// （上游 HEAD）：本地开发/构建一律 replace 到同级检出，发布时再换成真实版本号。
+// 插件仓库已改名为 kei-plugin-agent（管理命令前缀 /agent），但 module path、import path
+// 与插件名仍是 persona：require 与 import 用 github.com/RandomLemon/kei-plugin-persona，
+// replace 指向同级检出目录 ../kei-plugin-agent。
 // kei 是主 module 的直接依赖，插件依赖的 replace 也要在这里写一份：
 // Go 只应用主 module 的 replace，被依赖 module 内部的 replace 会被忽略。
 replace (
 	github.com/RandomLemon/kei => ../kei
-	github.com/RandomLemon/kei-plugin-persona => ../kei-plugin-persona
+	github.com/RandomLemon/kei-plugin-persona => ../kei-plugin-agent
 )

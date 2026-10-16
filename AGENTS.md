@@ -2,7 +2,8 @@
 
 `arisu` 仓库的硬性规则与结构概览。设计细节、配置键语义、接口契约**不在这里**：
 它们属于上游框架与插件，权威文档是 [`../kei/docs/`](../kei/docs/) 与
-[`../kei-plugin-persona/docs/`](../kei-plugin-persona/docs/)。改动前先读对应上游文档与既有实现。
+[`../kei-plugin-agent/docs/`](../kei-plugin-agent/docs/)（插件仓库已改名，module path 仍是
+`github.com/RandomLemon/kei-plugin-persona`）。改动前先读对应上游文档与既有实现。
 
 ## 1. 项目定位
 
@@ -11,9 +12,10 @@
   子目录——宿主只有一个 `main` 包。
 - 它是 [`kei`](https://github.com/RandomLemon/kei) 的宿主二进制：装配适配器与插件、启动引擎、
   优雅退出；业务逻辑一律在上游仓库或独立 module 里，本仓库不实现平台协议、不实现插件逻辑。
-内置 [`kei-plugin-persona`](https://github.com/RandomLemon/kei-plugin-persona)：仓库名、module
-path（`github.com/RandomLemon/kei-plugin-persona`）、插件名（`persona`）与命令前缀（`/persona`）
-统一，宿主空导入后由 `plugins.persona` 配置启用。
+内置 [`kei-plugin-agent`](https://github.com/RandomLemon/kei-plugin-agent)：「LLM 人格代理」插件，
+仓库已从 `kei-plugin-persona` 改名，但 module path / import path 与插件名仍是
+`github.com/RandomLemon/kei-plugin-persona` / `persona`（配置键 `plugins.persona`），
+管理命令前缀是 `/agent`；宿主空导入后由 `plugins.persona` 配置启用。
 
 ### 1.1 module path
 
@@ -36,7 +38,7 @@ path（`github.com/RandomLemon/kei-plugin-persona`）、插件名（`persona`）
 
 |文件|与上游的关系|
 |---|---|
-|`main.go`|与 `../kei/cmd/bot/main.go` 同构（flag + 信号 + 空导入 + 一次 `kei.Run`），差异只有四处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-persona`；`run(ctx, args)` 接收外部 context（信号处理留在 `main`），flag 集名、错误前缀与版本输出为 arisu；默认配置路径是模块根目录的 `config.yaml`（上游是 `configs/config.yaml`）|
+|`main.go`|与 `../kei/cmd/bot/main.go` 同构（flag + 信号 + 空导入 + 一次 `kei.Run`），差异只有四处：少空导入 `kei/adapters/feishu`（本仓库只接 OneBot 与 mock）；多空导入 `kei-plugin-persona`（插件仓库 kei-plugin-agent，module path 与插件名不变，管理命令 `/agent`）；`run(ctx, args)` 接收外部 context（信号处理留在 `main`），flag 集名、错误前缀与版本输出为 arisu；默认配置路径是模块根目录的 `config.yaml`（上游是 `configs/config.yaml`）。其余空导入（mock/onebot/echo/manage 与 SQL 方言 `pkg/kei/sql`）与上游一致|
 
 升级 kei 后同步这个文件；差异应保持为上面四处。门面 API（`kei.Options` 等）变动时同步本文件
 与 `README.md`，**不要**在本仓库重新实现装配。
@@ -45,10 +47,12 @@ path（`github.com/RandomLemon/kei-plugin-persona`）、插件名（`persona`）
 
 ### 2.1 依赖与分层
 
-- 只依赖 `github.com/RandomLemon/kei` 与 `github.com/RandomLemon/kei-plugin-persona`（本地走
-  `replace ... => ../kei`、`=> ../kei-plugin-persona`）。**禁止新增直接第三方依赖**——需要新依赖时
-  先在上游仓库解决，`require` 块里出现新的直接依赖即视为回归。`// indirect` 块来自上游 kei
-  （其 sqlite/mysql 存储后端引入 GORM 等），升级 kei 后跑 `go mod tidy` 同步，本仓库不直接 import。
+- 只依赖 `github.com/RandomLemon/kei` 与 `github.com/RandomLemon/kei-plugin-persona`（插件仓库已
+  改名为 kei-plugin-agent；本地走 `replace ... => ../kei`、`=> ../kei-plugin-agent`）。**禁止新增
+  直接第三方依赖**——需要新依赖时先在上游仓库解决，`require` 块里出现新的直接依赖即视为回归。
+  `// indirect` 块来自上游 kei（其 sqlite/mysql 存储后端经 `pkg/kei/sql` 引入 GORM 等，本仓库的
+  `main.go` 空导入该包以支持 `storage.type: sqlite`），升级 kei 后跑 `go mod tidy` 同步，本仓库不直接
+  import 这些包。
 - 适配器与插件只能经注册表接入：新增平台/插件时只加空导入与配置，禁止在 `main.go` 里写
   `switch adapter`、`if platform == "onebot"` 之类的分支。
 - 配置与密钥只经配置对象读取；禁止在代码里 `os.Getenv` 或读配置文件。
@@ -67,10 +71,10 @@ path（`github.com/RandomLemon/kei-plugin-persona`）、插件名（`persona`）
 - `flake.nix` 只提供 `devShell`（go / gcc / gopls / golangci-lint / dlv / jq / curl / python3）与
   `formatter`；`.envrc` 走 direnv `use flake`。`GOTOOLCHAIN=local` 已固定；上游 kei 的 sqlite
   存储后端经 cgo 编译，故 devShell 装 `gcc` 并固定 `CGO_ENABLED=1`。
-- **不提供 `packages`/`checks`/`apps`**：构建依赖同级 kei 与 kei-plugin-persona 检出，而 flake 输入与
+- **不提供 `packages`/`checks`/`apps`**：构建依赖同级 kei 与 kei-plugin-agent 检出，而 flake 输入与
   path 字面量都逃不出 store（`path:../kei` 会被解析到 flake store 副本的 `../kei`，
   `builtins.path { path = ../kei; }` 在 pure 模式下直接报错）。二进制在 devShell 内用 `go build` 产出。
-  与 `../kei-plugin-persona` 的 flake 保持同一种做法。
+  与 `../kei-plugin-agent` 的 flake 保持同一种做法。
 
 ## 3. 质量门（合并前必须全绿）
 

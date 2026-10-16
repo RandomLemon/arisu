@@ -1,15 +1,16 @@
 # arisu
 
 基于 [kei](https://github.com/RandomLemon/kei) 框架的聊天机器人，内置
-[kei-plugin-persona](https://github.com/RandomLemon/kei-plugin-persona)「LLM 人格代理」插件：
-在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。（插件仓库、module path、插件名与
-命令前缀统一为 `kei-plugin-persona` / `github.com/RandomLemon/kei-plugin-persona` / `persona`。）
+[kei-plugin-agent](https://github.com/RandomLemon/kei-plugin-agent)「LLM 人格代理」插件：
+在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。插件仓库已改名为 `kei-plugin-agent`，
+但 module path / import path 与插件名仍是 `github.com/RandomLemon/kei-plugin-persona` / `persona`
+（配置键 `plugins.persona`；管理命令前缀 `/agent`）。
 
 - 平台：OneBot v11（QQ）、mock（本地联调）。适配器与插件全部经 kei 的注册表装配，
   `main.go` 内不出现任何平台名分支。
-- 插件：`persona`（LLM 人格代理）、`echo`、`manage`。
+- 插件：`persona`（LLM 人格代理，管理命令 `/agent`）、`echo`、`manage`。
 - 工具链：Go 1.25+，由 `flake.nix` + direnv 提供（`nix develop`）；arisu 自身不引入任何
-  直接第三方依赖，GORM 等间接依赖来自上游 kei 的存储后端。
+  直接第三方依赖，GORM 等间接依赖来自上游 kei 的 SQL 存储后端（`pkg/kei/sql` 空导入）。
 
 ## 目录结构
 
@@ -33,9 +34,11 @@ kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 
 
 - 源码（`main.go`、`e2e_test.go`）与示例配置 `config.yaml` 直接放在模块根目录，没有
   `cmd/`、`configs/` 子目录：宿主只有一个 `main` 包，多一层目录换不来任何隔离。
-- 与 kei cmd/bot 的差异只有四处：额外空导入 `kei-plugin-persona`；`run(ctx, args)` 接收调用方
-  传入的 context（信号处理留在 `main`，测试可直接驱动全链路）；flags 集名、错误前缀与版本
-  输出为 `arisu`；默认配置路径是根目录的 `config.yaml`（上游为 `configs/config.yaml`）。
+- 与 kei cmd/bot 的差异只有四处：额外空导入 `kei-plugin-persona`（插件仓库已改名为
+  kei-plugin-agent）；`run(ctx, args)` 接收调用方传入的 context（信号处理留在 `main`，测试
+  可直接驱动全链路）；flags 集名、错误前缀与版本输出为 `arisu`；默认配置路径是根目录的
+  `config.yaml`（上游为 `configs/config.yaml`）。其余空导入（mock/onebot/echo/manage 与
+  SQL 方言 `pkg/kei/sql`）与上游一致。
 - module path 是 `github.com/RandomLemon/arisu`（独立 module）。历史形态是
   `github.com/RandomLemon/kei/arisu`：kei 曾不公开装配 API，宿主必须让 import path 落在
   `github.com/RandomLemon/kei/` 之下才能访问 `internal/`；`pkg/kei` 门面公开后该约束消失，
@@ -45,10 +48,10 @@ kei 提供公开装配门面 `github.com/RandomLemon/kei/pkg/kei`：加载 YAML 
 ## 环境准备（Nix + direnv）
 
 ```bash
-# arisu 依赖同级目录的 kei 与 kei-plugin-persona 检出（go.mod 的 replace 指向它们）
+# arisu 依赖同级目录的 kei 与 kei-plugin-agent 检出（go.mod 的 replace 指向它们）
 cd <父目录>
 git clone https://github.com/RandomLemon/kei
-git clone https://github.com/RandomLemon/kei-plugin-persona
+git clone https://github.com/RandomLemon/kei-plugin-agent
 git clone https://github.com/RandomLemon/arisu
 
 cd arisu
@@ -61,7 +64,7 @@ nix develop --command go test -race ./...
 ```
 
 `flake.nix` 只提供 `devShell` 与 `formatter`：构建依赖同级检出，而 flake 输入与 path 字面量
-都逃不出 store，沙箱里拿不到 `../kei`，所以不提供 `packages`/`checks`（与 `../kei-plugin-persona`
+都逃不出 store，沙箱里拿不到 `../kei`，所以不提供 `packages`/`checks`（与 `../kei-plugin-agent`
 的做法一致）。二进制在 devShell 内用 go 产出。
 
 ## 快速开始（本地联调）
@@ -91,25 +94,23 @@ KEI_PLUGINS_PERSONA_LLM_MODEL=stub \
 KEI_AUTH_ADMIN_USERS=u1 \
 ./bin/arisu -config config.yaml
 
-# 3) 另开一个终端：注入私聊消息（第一条只建立会话状态，第二条起触发回复）
+# 3) 另开一个终端：注入一条私聊消息（新会话首条即回：状态懒加载完成后会补判一次）
 curl -sS -XPOST 127.0.0.1:18080/inject -H 'content-type: application/json' \
-  -d '{"kind":"private","text":"爱丽丝在吗","user_id":"u1","user_name":"张三"}'
-sleep 1
-curl -sS -XPOST 127.0.0.1:18080/inject -H 'content-type: application/json' \
-  -d '{"kind":"private","text":"爱丽丝在吗","user_id":"u1","user_name":"张三"}'
+  -d '{"kind":"private","text":"小霞在吗","user_id":"u1","user_name":"张三"}'
+sleep 3   # 等批处理窗口（batch_window）+ LLM 调用
 
 # 4) 观察机器人实际发出的消息
 curl -sS 127.0.0.1:18080/sent | jq -c '.[] | {target: .Request.Target, text: .Request.Message.Segments[0].Data.text}'
 # {"target":{"Platform":"mock","BotID":"mock-main","ChannelID":"","UserID":"u1","Kind":"private"},"text":"在的，怎么了？"}
 
-# 5) 管理员命令（auth.admin_users 里要有 u1）
+# 5) 管理员命令（auth.admin_users 里要有 u1；命令前缀是 /agent）
 curl -sS -XPOST 127.0.0.1:18080/inject -H 'content-type: application/json' \
-  -d '{"text":"/persona status","user_id":"u1","channel_id":"g1"}'
+  -d '{"text":"/agent status","user_id":"u1","channel_id":"g1"}'
 # 群里会收到：persona: 开 · persona=xia(default) · 历史 0 条 · 近 1 小时回复 0/6 · 上次回复 从未 · llm 错误 0 · 已跳 0
 
-# 6) 指标与健康检查
-curl -sS 127.0.0.1:19090/healthz
-curl -sS 127.0.0.1:19090/metrics | grep kei_events
+# 6) 指标与健康检查（地址取自 config.yaml 的 metrics.addr）
+curl -sS 127.0.0.1:19091/healthz
+curl -sS 127.0.0.1:19091/metrics | grep kei_events
 ```
 
 群聊随机插话同样可测：`{"text":"...","user_id":"u2","channel_id":"g1"}` 注入若干条，
@@ -120,6 +121,31 @@ base64 内联发给 LLM（不再传网址），单次最多 `llm_vision_max_imag
 `llm_vision_max_image_bytes`；`llm_vision_allowed_formats` 非空时只发清单内的格式（大小写不敏感、
 可写 `image/` 前缀、`jpg` 等价 `jpeg`），清单外或超限、下载失败的图丢弃，不影响文本。
 
+## 工具调用（MCP）
+
+插件支持让模型按需调用外部工具，但工具**只经 MCP 服务提供**（Streamable HTTP），插件不内置业务
+工具：把 `plugins.persona.mcp_url` 指向 MCP 端点即启用，前置条件是 LLM 服务支持 tool calling。
+`/agent tools` 显示当前目录、`/agent tools reload` 后台刷新（刷新期间旧目录继续可用）；删掉工具
+只需改远端，人格名单里残留的名字不会暴露给模型。每人格可用 `personas.<名>.tools` 收窄自己的
+工具（名单元素是 `mcp__<远端名称>`，配置期校验格式并要求 `mcp_url` 非空；不写即继承全部工具，
+写 `[]` 表示无工具，名单与当前目录取交集）。
+
+```yaml
+plugins:
+  persona:
+    mcp_url: "http://127.0.0.1:8080/mcp"     # 空 = 工具目录为空，普通聊天不受影响
+    mcp_timeout: "8s"                        # 初始化/目录刷新总预算；单次调用用 tools_call_timeout
+    tools_max_rounds: 2                      # 一轮生成最多几轮工具调用
+    mcp_extra_headers: { Authorization: "Bearer xxx" }   # 固定请求头，密钥建议走环境变量
+    personas:
+      xia:
+        prompt: "……"
+        tools: [mcp__search_manual]          # 只给这个人格开放的工具
+```
+
+一次工具调用的完整链路（`mcp__search_manual` → 远端 `search_manual` → 结果回填 → 最终回复）与
+协议细节见 kei-plugin-agent 的 `docs/mcp.md` 第 14 章。
+
 ## 接入真实平台
 
 ### OneBot v11（QQ）
@@ -127,7 +153,8 @@ base64 内联发给 LLM（不再传网址），单次最多 `llm_vision_max_imag
 `config.yaml` 里 `qq-main` 用 `mode: reverse_ws`（缺省）：OneBot 实现主动连入
 `ws://127.0.0.1:18082/onebot/v11/ws`。NapCat / Lagrange 里把反向 WebSocket 地址填成该地址即可；
 `secret` 非空时两者都要带同一令牌。其他三种模式（`forward_http`/`reverse_http`/`forward_ws`）
-只需改 `mode` 与 `api_url`/`ws_url`，键的语义见 kei 的
+只需改 `mode` 与 `api_url`/`ws_url`，与所选 mode 无关的键会被忽略并记一条 warn（因此可以保留全部
+键、只改 `mode`），键的语义见 kei 的
 [docs/configuration.md](https://github.com/RandomLemon/kei/blob/main/docs/configuration.md)。
 
 建议把 `plugins.persona.self_ids` 填成机器人自己的 QQ 号，这样只有 @ 到它才算寻址；留空时任意 At 都算
@@ -135,29 +162,35 @@ base64 内联发给 LLM（不再传网址），单次最多 `llm_vision_max_imag
 
 ## 配置
 
-配置键的权威说明在 kei 的 `docs/configuration.md`（框架配置）与 kei-plugin-persona 的
+配置键的权威说明在 kei 的 `docs/configuration.md`（框架配置）与 kei-plugin-agent 的
 `docs/configuration.md`（`plugins.persona` 全量键表），本仓库只给一份可直接用的示例：
 `config.yaml`。
 
-顶层段：`log`、`metrics`、`storage`、`limits`、`auth`、`adapters`、`bots`、`plugins`。
-全部键都可用环境变量覆盖（前缀 `KEI_`，`-`/`.`/`_` 等价、大小写不敏感）：
+顶层段：`log`、`metrics`、`engine`、`storage`、`limits`、`auth`、`adapters`、`bots`、`plugins`
+（`engine`、`adapters`、`bots` 与 `storage` 段都可整体省略；重复的 YAML 键会被拒绝）。
+全部键都可用环境变量覆盖（前缀 `KEI_`，`-`/`.`/`_` 等价、大小写不敏感；空白值等同未设置，
+未知的 `KEI_*` 变量静默忽略）：
 
 ```bash
 KEI_LOG_LEVEL=debug
+KEI_ENGINE_DEDUP_TTL=10m                       # engine.dedup_ttl；命令前缀改 KEI_ENGINE_COMMAND_PREFIXES
 KEI_STORAGE_TYPE=sqlite                        # memory（默认）| sqlite | mysql
 KEI_STORAGE_DSN=/var/lib/arisu/storage.db      # sqlite 为文件路径，mysql 需带 parseTime=true
 KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx        # 密钥只走环境变量，不写进文件
 KEI_PLUGINS_PERSONA_LLM_MODEL=qwen2.5:7b
 KEI_PLUGINS_PERSONA_SELF_IDS=123456789         # 机器人自己的 QQ；不填则任意 At 都算寻址
 KEI_PLUGINS_PERSONA_PRIVATE_POLICY=whitelist
+KEI_PLUGINS_PERSONA_MCP_URL=http://127.0.0.1:8080/mcp   # 启用 MCP 工具（需 LLM 支持 tool calling）
 KEI_PLUGINS_PERSONA_LLM_VISION_ALLOWED_FORMATS="jpeg,png,gif"   # 空 = 不过滤图片格式
 KEI_BOTS_QQ_MAIN_ENABLED=false                # 只停用这一个实例
 KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 ```
 
-`storage` 段可整体省略，缺省即 `memory`（重启丢历史与 `/persona` 运行时覆盖）；改 `type` 为
+`storage` 段可整体省略，缺省即 `memory`（重启丢历史与 `/agent` 的运行时覆盖）；改 `type` 为
 `sqlite`/`mysql` 让插件状态持久化，`cleanup_interval` 等其余键原样交给对应后端（全表见 kei 的
-`docs/configuration.md` §12.5）。
+`docs/configuration.md` §12.5）。SQL 方言是显式 opt-in：`main.go` 必须空导入
+`github.com/RandomLemon/kei/pkg/kei/sql`（本仓库已导入，与 kei 的 `cmd/bot` 一致），
+去掉它则 `sqlite`/`mysql` 会在装配期报未知存储类型，同时也就不再需要 GORM 与 cgo。
 
 `personas` / `bindings` / `llm_extra_headers` 这类结构建议写在 YAML 里：环境变量值会再走一层 YAML 解析，
 写成内联字面量也能生效（如 `KEI_PLUGINS_PERSONA_BINDINGS='[{channel_id: "389372103", persona: default}]'`），
@@ -167,7 +200,8 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 `KEI_PLUGINS_PERSONA_LLM_VISION_ALLOWED_FORMATS="jpeg,png,gif"`。
 写在 YAML 里时列表元素按 YAML 语义转字符串，QQ 号与群号的裸数字写法同样有效（`self_ids: [123456789]` 等价于 `["123456789"]`）；
 `llm_vision_allowed_formats` 的元素读取后归一：去参数与 `image/` 前缀、转小写、`jpg`→`jpeg`，统一后为空即按不过滤处理。
-覆盖是否命中可在启动日志确认（`log.level: debug`，文案 `环境变量覆盖配置`）。
+覆盖是否命中可在启动日志确认（`log.level: debug`，文案 `环境变量覆盖配置`）；只有实际生效的覆盖
+会被记录（空白值、未命中 bot/plugin/adapter 名的变量都不记录）。
 
 ## 日志
 
@@ -176,7 +210,7 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 
 - 每条收发消息按 INFO 记录：`收到消息`（字段 `platform`/`bot`/`event_id`/`message_id`/`kind`/
   `user`/`user_name`/`channel`/`channel_name`/`content`）、`发送消息`（字段 `platform`/`bot`/
-  `kind`/`channel`/`user`/`content`，回复时另有 `reply_to`，平台返回时另有 `message_id`）。
+  `kind`/`channel`/`user`/`content`，平台返回时另有 `message_id`）。
   `content` 把消息段渲染成单行 `type:值`，段间空格连接（文本原样、`at:123(昵称)`、图片/文件输出
   URL 或文件标识、卡片只记类型名），例如 `content="text:/echo hi"`。
   非消息事件（心跳等）不产生这类日志。
@@ -195,9 +229,10 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 | `/manage plugins` | 已注册插件 | 管理员（`manage.plugins_admin_only`） |
 | `/manage admin` | 管理员权限自检（Auth 中间件演示） | 管理员 |
 | `/manage status` | 主机 CPU/内存/磁盘/GPU 状态 | 管理员（始终） |
-| `/persona status \| switch [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
-| `/persona policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
-| `/persona list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |
+| `/agent status \| switch [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
+| `/agent policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
+| `/agent list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |
+| `/agent tools [reload]` | 查看或后台刷新 MCP 工具目录（不调用 LLM） | 管理员 |
 
 管理员名单来自 `auth.admin_users`（或 `KEI_AUTH_ADMIN_USERS`）；私聊命令也要求发送者在名单内。
 
@@ -222,15 +257,16 @@ nix develop --command go build -trimpath -ldflags '-s -w' -o bin/arisu .
 KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx ./bin/arisu -config /etc/arisu/config.yaml
 ```
 
-- 构建需要 cgo：上游 kei 的 sqlite 存储后端经 `mattn/go-sqlite3` 编译，`flake.nix` 的 devShell
-  已装 `gcc` 并固定 `CGO_ENABLED=1`；在 devShell 外构建请自行保证。
+- 构建需要 cgo：上游 kei 的 sqlite 存储后端经 `mattn/go-sqlite3` 编译（由 `pkg/kei/sql` 启用），
+  `flake.nix` 的 devShell 已装 `gcc` 并固定 `CGO_ENABLED=1`；在 devShell 外构建请自行保证。
 - 健康检查 `GET /metrics 所在 addr 的 /healthz`，指标 `GET /metrics`（Prometheus 文本格式）。
 - 收到 SIGINT/SIGTERM 后优雅退出：排空已入队事件、停止适配器与插件。
 
 ## 已知限制
 
-- 存储缺省是 kei 的内存实现（`storage.type: memory`），重启丢历史与 `/persona` 的运行时覆盖；
-  改成 `storage.type: sqlite`（`dsn` 为文件路径）或 `mysql` 即持久化，或把自己的
-  `bot.Storage` 实现经 `kei.Run(ctx, kei.Options{Storage: ...})` 注入。
+- 存储缺省是 kei 的内存实现（`storage.type: memory`），重启丢历史与 `/agent` 的运行时覆盖；
+  改成 `storage.type: sqlite`（`dsn` 为文件路径）或 `mysql` 即持久化（需要 `main.go` 的
+  `pkg/kei/sql` 空导入），或把自己的 `bot.Storage` 实现经
+  `kei.Run(ctx, kei.Options{Storage: ...})` 注入。
 - 同一平台多个 bot 实例时，主动发送必须在 `bot.Target.BotID` 指定实例名；回复当前会话由
   `TargetFromEvent` 自动带上，不受影响。

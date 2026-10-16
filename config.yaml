@@ -1,10 +1,13 @@
 # arisu 配置。
 #
-# 键语义与默认值见 kei 的 docs/configuration.md 与 kei-plugin-persona 的
-# docs/configuration.md；本文件只写「与默认值不同」或需要人工填写的键。
+# 键语义与默认值见 kei 的 docs/configuration.md 与 kei-plugin-agent（插件仓库，
+# module path 仍是 kei-plugin-persona）的 docs/configuration.md；本文件只写
+# 「与默认值不同」或需要人工填写的键。插件的管理命令前缀是 /agent。
 #
-# 所有键都可以用环境变量覆盖（前缀 KEI_），例如：
+# 所有键都可以用环境变量覆盖（前缀 KEI_）；空白值等同未设置（不覆盖 YAML），
+# 未命中已知路径的 KEI_* 变量被静默忽略。例如：
 #   KEI_LOG_LEVEL=debug
+#   KEI_ENGINE_DEDUP_TTL=10m                        # 引擎可调参数：engine.dedup_ttl
 #   KEI_STORAGE_TYPE=sqlite                         # 存储后端：memory（默认）| sqlite | mysql
 #   KEI_STORAGE_DSN=/var/lib/arisu/storage.db
 #   KEI_PLUGINS_PERSONA_LLM_API_KEY=sk-xxx          # 密钥不要写进本文件
@@ -26,11 +29,27 @@ metrics:
 # 插件与适配器共用的键值存储。type: memory | sqlite | mysql（默认 memory）。
 # memory 重启即丢；sqlite 的 dsn 是文件路径；mysql 的 dsn 必须带 parseTime=true。
 # 未知 type 在装配期报错并列出已注册类型。也可用 KEI_STORAGE_TYPE / KEI_STORAGE_DSN 覆盖。
+# SQL 方言是显式 opt-in：main.go 已空导入 kei 的 pkg/kei/sql（与 kei cmd/bot 一致），
+# 不用 SQL 后端时可去掉那行空导入，同时不再需要 GORM 与 cgo。
 storage:
   type: sqlite
   dsn: ./storage.sqlite
 #   cleanup_interval: 1m        # 过期行清理间隔，0 关闭后台清理
 #   max_open_conns: 10          # 仅 mysql
+
+# 引擎可调参数（可选）：整段缺省时全部吃引擎默认值（见 kei 的 docs/configuration.md 12.6）。
+# 时长写字符串（10s）或秒数；容量/整数类写 0 表示用默认；send_retries: 0 表示不重试。
+# engine:
+#   command_prefixes: ["/"]     # 命令前缀；改为 ["!"] 即 !manage ping
+#   event_timeout: 30s          # 单条事件整体处理超时
+#   rule_timeout: 10s           # 单条规则 Handler 执行超时（超时不再打断 Handler，只计 kei_rule_overruns_total）
+#   shutdown_timeout: 10s       # 优雅关闭总超时
+#   bus_workers: 4              # 事件总线分片 worker 数
+#   bus_queue_size: 256         # 每个分片队列容量
+#   dedup_ttl: 5m               # 事件去重时间窗
+#   dedup_capacity: 4096        # 去重集合容量上限
+#   send_retries: 0             # 发送失败重试次数（不含首次）
+#   send_backoff: 100ms         # 发送重试初始退避
 
 # 限流：0 表示不限制（LLM 插件自带并发上限 limits_max_concurrent）。
 limits:
@@ -39,7 +58,7 @@ limits:
   send_rate: 0       # 每个 bot 每秒允许发送的条数
   send_burst: 0
 
-# 管理员名单：/persona 命令、/manage plugins（manage.plugins_admin_only）都要求发送者在此列表。
+# 管理员名单：/agent 命令、/manage plugins（manage.plugins_admin_only）都要求发送者在此列表。
 # 填 QQ 号（OneBot），例如 ["123456"]。
 auth:
   admin_users: []
@@ -50,10 +69,13 @@ auth:
 #   onebot:
 #     enabled: false
 
+# bots 段可以为空（只跑插件）。每个条目的保留键只有 name / adapter / enabled / plugins，
+# 其余键原样交给该适配器解释（与所选 mode 无关的键会被忽略并记一条 warn）。
 bots:
   # Mock 适配器：本地联调用，HTTP 控制面手动注入事件并观察发送结果。
   #   curl -XPOST 127.0.0.1:18080/inject -d '{"kind":"private","text":"在吗","user_id":"u1"}'
   #   curl 127.0.0.1:18080/sent
+  # 控制面只接受回环地址；确实需要远程注入时给这个实例加 allow_remote_control_plane: true。
   - name: mock-main
     adapter: mock
     platform: mock
@@ -86,8 +108,8 @@ plugins:
     enabled: true
     plugins_admin_only: true   # /manage plugins 仅管理员可用（需配置 auth.admin_users）
 
-  # LLM 人格代理：群聊里按人格预设偶尔插话，私聊必回。
-  # 完整键表与默认值见 kei-plugin-persona 的 docs/configuration.md 第 10 节。
+  # LLM 人格代理：群聊里按人格预设偶尔插话，私聊必回；管理命令前缀是 /agent。
+  # 完整键表与默认值见 kei-plugin-agent 的 docs/configuration.md 第 10 节。
   persona:
     enabled: true
 
@@ -101,6 +123,7 @@ plugins:
           - 对话富有耐心，态度温和，不攻击用户。
         display_name: "小霞"
         temperature: 0.8
+        # tools: [mcp__search_manual]   # 只给这个人格开放的工具（需先配置 mcp_url）
       test:
         prompt: |
           你是“小霞”，一个活泼开朗、元气满满的少女。你喜欢用轻快、温暖、真诚的方式回应，让其他人感到轻松、被倾听、被鼓励。
@@ -188,6 +211,18 @@ plugins:
     llm_vision_max_image_bytes: 4096000   # 单张图片下载体积上限（字节），超限丢弃
     llm_vision_allowed_formats: ["jpeg", "png"]   # 图片格式白名单（扁平列表键），如 ["jpeg","png","gif"]；空 = 不过滤
                                      # 匹配大小写不敏感、可写 image/ 前缀、jpg 等价 jpeg；清单外的图按格式丢弃
+
+    # ---- 工具调用（MCP，可选）----
+    # 工具只经外部 MCP 服务（Streamable HTTP）提供：mcp_url 为空时工具目录为空，普通聊天不受影响。
+    # 需 LLM 服务支持 tool calling；人格可用 tools 名单（mcp__<远端名>）收窄自己的工具：
+    # 不写即继承全部工具，写 [] 表示无工具，名单与当前目录取交集；非法名字在配置期报错。
+    # 完整语义见 kei-plugin-agent 的 docs/mcp.md 第 14 章。
+    # mcp_url: "http://127.0.0.1:8080/mcp"
+    # mcp_extra_headers: { Authorization: "Bearer xxx" }   # 固定请求头；密钥建议走环境变量
+    # mcp_timeout: "8s"              # 初始化与完整目录刷新的总预算（含分页）
+    # tools_call_timeout: "8s"       # 单次工具调用超时（必须 > 0）
+    # tools_max_rounds: 2            # 一轮生成最多几轮工具调用，之后以 tool_choice: none 收尾
+    # tools_result_max_chars: 2000   # 单次工具结果的长度上限（rune）
 
     # ---- 回复 ----
     reply_max_chars: 200
