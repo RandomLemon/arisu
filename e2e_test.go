@@ -58,13 +58,14 @@ func TestRunEndToEnd(t *testing.T) {
 		t.Fatalf("私聊消息类型 = %q，期望 %q", rec.Request.Message.Kind, bot.MessagePrivate)
 	}
 
-	// /agent status：管理员命令（auth.admin_users 里的 u1），回复经 Reply 通道回到原会话。
-	inject(t, ctrl, map[string]any{"text": "/agent status", "user_id": "u1", "user_name": "张三", "channel_id": "g1"})
+	// /agent persona：管理员命令（auth.admin_users 里的 u1），回复经 Reply 通道回到原会话；
+	// 无参数时输出当前人格、来源与全部预设。
+	inject(t, ctrl, map[string]any{"text": "/agent persona", "user_id": "u1", "user_name": "张三", "channel_id": "g1"})
 	cmd := waitSend(t, ctrl, 10*time.Second, func(r mock.SendRecord) bool {
 		return strings.Contains(segText(t, r.Request.Message), "persona=")
 	})
-	if got := segText(t, cmd.Request.Message); !strings.Contains(got, "persona=arisu") {
-		t.Fatalf("/agent status 输出 = %q，期望含 persona=arisu", got)
+	if got := segText(t, cmd.Request.Message); !strings.Contains(got, "persona=arisu") || !strings.Contains(got, "预设=[arisu]") {
+		t.Fatalf("/agent persona 输出 = %q，期望含 persona=arisu 与 预设=[arisu]", got)
 	}
 	if cmd.Request.Target.ChannelID != "g1" || cmd.Request.Target.Kind != bot.MessageGroup {
 		t.Fatalf("命令回复目标 = %+v，期望回到 g1 群", cmd.Request.Target)

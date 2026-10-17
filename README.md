@@ -2,7 +2,8 @@
 
 基于 [kei](https://github.com/RandomLemon/kei) 框架的聊天机器人，内置
 [kei-plugin-agent](https://github.com/RandomLemon/kei-plugin-agent)「LLM 人格代理」插件：
-在群聊里按人格预设偶尔插话，私聊里只要对方开口就必回。插件仓库已改名为 `kei-plugin-agent`，
+在群聊里按人格预设偶尔插话；被 @、命中 `trigger_keywords` 或私聊时算寻址，必须回一句。
+插件仓库已改名为 `kei-plugin-agent`，
 但 module path / import path 与插件名仍是 `github.com/RandomLemon/kei-plugin-persona` / `persona`
 （配置键 `plugins.persona`；管理命令前缀 `/agent`）。
 
@@ -115,6 +116,8 @@ curl -sS 127.0.0.1:19091/metrics | grep kei_events
 
 群聊随机插话同样可测：`{"text":"...","user_id":"u2","channel_id":"g1"}` 注入若干条，
 在 `random_probability` / `random_min_participants` / `random_cooldown` 允许时会插一句。
+寻址轮次（@ 本机器人、命中 `trigger_keywords`、私聊）的提示词要求模型必须回一句，不提供
+`llm_skip_token` 出口；只有随机轮次才允许输出哨兵保持沉默。
 把 `plugins.persona.llm_*` 指向任意 OpenAI 兼容服务（OpenAI、DeepSeek、Ollama、vLLM 等）即可。
 需要让机器人「看图」时把 `llm_vision_enabled: true` 并换成视觉模型：入站图片由插件自行下载后以
 base64 内联发给 LLM（不再传网址），单次最多 `llm_vision_max_images` 张、单张上限
@@ -229,7 +232,9 @@ KEI_ADAPTERS_QQ_ENABLED=false                 # 停用整个平台
 | `/manage plugins` | 已注册插件 | 管理员（`manage.plugins_admin_only`） |
 | `/manage admin` | 管理员权限自检（Auth 中间件演示） | 管理员 |
 | `/manage status` | 主机 CPU/内存/磁盘/GPU 状态 | 管理员（始终） |
-| `/agent status \| switch [name] \| on \| off \| reset` | 人格代理的查看与开关 | 管理员 |
+| `/agent status` | 输出开关、当前人格与来源、历史条数、小时配额、错误/跳过计数 | 管理员 |
+| `/agent persona [name]` | 无参数时列出当前人格与全部预设；带 `name` 时切换当前会话人格（写运行时覆盖并持久化） | 管理员 |
+| `/agent on` / `/agent off` / `/agent reset` | 开关本会话 / 清历史与覆盖 | 管理员 |
 | `/agent policy [group\|private off\|open\|whitelist\|blacklist]` | 名单策略 | 管理员 |
 | `/agent list [group\|private [add\|del id]]` | 名单增删与查看 | 管理员 |
 | `/agent tools [reload]` | 查看或后台刷新 MCP 工具目录（不调用 LLM） | 管理员 |
