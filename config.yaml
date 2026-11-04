@@ -176,10 +176,10 @@ plugins:
     mention_min_interval: "2s"
 
     # ---- 群聊随机参与 ----
-    random_enabled: false
-    random_probability: 0.05    # 单条非寻址消息的插话概率（调低更安静）
+    random_enabled: true
+    random_probability: 0.02    # 单条非寻址消息的插话概率（调低更安静）
     random_cooldown: "60s"
-    random_max_per_hour: 6
+    random_max_per_hour: 3
     random_min_participants: 2  # 活跃窗口内至少几个真人才算「聊起来了」
     random_activity_window: "5m"
     random_quiet_hours: ""      # 例如 "23:30-07:30"；空表示不静默
