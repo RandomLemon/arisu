@@ -176,7 +176,7 @@ plugins:
     mention_min_interval: "2s"
 
     # ---- 群聊随机参与 ----
-    random_enabled: true
+    random_enabled: false
     random_probability: 0.05    # 单条非寻址消息的插话概率（调低更安静）
     random_cooldown: "60s"
     random_max_per_hour: 6
